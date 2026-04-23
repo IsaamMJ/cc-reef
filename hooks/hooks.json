@@ -1,0 +1,41 @@
+{
+  "description": "cc-reef hooks — resume card on session start, Bash nudge on wasteful patterns, and post-session incremental scan.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PLUGIN_ROOT\"/dist/cli.js hook session-start",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PLUGIN_ROOT\"/dist/cli.js hook bash-nudge",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PLUGIN_ROOT\"/dist/cli.js hook post-session",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

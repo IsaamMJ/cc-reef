@@ -1,0 +1,28 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "cc-reef",
+  "description": "cc-reef — effectiveness analyzer and context recovery for Claude Code.",
+  "owner": {
+    "name": "Isaam MJ"
+  },
+  "plugins": [
+    {
+      "name": "cc-reef",
+      "description": "Groups your Claude Code projects by company/product, injects resume cards at session start, nudges wasteful Bash use, and generates grouped weekly reports. 100% local — zero telemetry.",
+      "version": "0.0.2",
+      "author": {
+        "name": "Isaam MJ"
+      },
+      "source": "./",
+      "category": "productivity",
+      "homepage": "https://github.com/IsaamMJ/cc-reef",
+      "tags": [
+        "productivity",
+        "analytics",
+        "context-recovery",
+        "mcp"
+      ]
+    }
+  ],
+  "version": "0.0.2"
+}

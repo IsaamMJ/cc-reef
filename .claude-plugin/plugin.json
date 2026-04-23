@@ -1,0 +1,19 @@
+{
+  "name": "cc-reef",
+  "version": "0.0.2",
+  "description": "Local-first effectiveness analyzer and context-recovery layer for Claude Code. Groups projects by company/product, injects resume cards, nudges wasteful Bash use, and generates weekly reports.",
+  "author": {
+    "name": "Isaam MJ"
+  },
+  "repository": "https://github.com/IsaamMJ/cc-reef",
+  "homepage": "https://github.com/IsaamMJ/cc-reef#readme",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "productivity",
+    "analytics",
+    "mcp",
+    "developer-tools"
+  ],
+  "mcpServers": "./.mcp.json"
+}

@@ -83,6 +83,21 @@ Weekly markdown of your real habits.
 
 ## 🚀 Quickstart
 
+### Recommended — install as a Claude Code plugin (no terminal)
+
+Inside any Claude Code session:
+
+```
+/plugin marketplace add https://github.com/IsaamMJ/cc-reef
+/plugin install cc-reef@cc-reef
+```
+
+That's it. Hooks, the MCP server, and all commands register automatically. No terminal, no absolute paths, no build step. Your next session starts with reef active.
+
+### Alternative — clone + one command
+
+If you prefer a local clone (or want to hack on it):
+
 ```bash
 git clone https://github.com/IsaamMJ/cc-reef.git
 cd cc-reef
@@ -92,7 +107,8 @@ node dist/cli.js init
 
 `reef init` is a single idempotent command that installs hooks, registers the MCP server with Claude Code, runs the first scan, and auto-groups your project folders. Safe to re-run anytime.
 
-Restart Claude Code once after init so the MCP server loads.
+> [!WARNING]
+> If you already installed via the clone method and now want the plugin: first run `node dist/cli.js uninstall-hooks` and `claude mcp remove reef` to avoid duplicate hook firing, then `/plugin install`.
 
 > [!TIP]
 > Requires **Node.js 22+** — reef uses the built-in `node:sqlite` so you never deal with native build tools.

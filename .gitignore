@@ -1,5 +1,4 @@
 node_modules/
-dist/
 *.log
 *.tsbuildinfo
 .DS_Store
@@ -7,3 +6,9 @@ dist/
 .env.local
 .omc/
 .claude/
+
+# dist/ intentionally tracked — Claude Code plugin users install via
+# `/plugin install` which clones the repo as-is, so dist must be present
+# for the plugin to run without a build step. Keep dist regenerated from
+# src via `npm run build` and commit the output with each release.
+
