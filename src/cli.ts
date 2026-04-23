@@ -13,6 +13,7 @@ import { runHook } from './hooks/runner.js';
 import { getStatus, printStatus } from './status.js';
 import { writeReport } from './report.js';
 import { reportBug, previewBugReport } from './reportBug.js';
+import { runMcpServer } from './mcp.js';
 
 const program = new Command();
 
@@ -156,6 +157,13 @@ program
     } else {
       process.stdout.write(content);
     }
+  });
+
+program
+  .command('mcp')
+  .description('Run reef as an MCP server (stdio). Register in your client config to expose reef tools to Claude.')
+  .action(async () => {
+    await runMcpServer();
   });
 
 // Hidden hook dispatcher — invoked by Claude Code, not end users.

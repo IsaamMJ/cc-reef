@@ -232,6 +232,59 @@ reef status
 
 ---
 
+## 🤖 Use reef inside Claude Code (MCP)
+
+reef ships as an **MCP server** — once registered, Claude invokes reef tools directly, no terminal and no Bash-permission prompts.
+
+### Register with Claude Code
+
+```bash
+claude mcp add reef -- node "<absolute-path>/cc-reef/dist/cli.js" mcp
+```
+
+### Or add to your client config manually
+
+```json
+{
+  "mcpServers": {
+    "reef": {
+      "command": "node",
+      "args": ["/absolute/path/to/cc-reef/dist/cli.js", "mcp"]
+    }
+  }
+}
+```
+
+### What Claude can then do naturally
+
+```
+you:    "reef, how was my week across RiseCraft?"
+claude: <calls reef_report> → summarises grouped output
+
+you:    "reef, put E--RiseCraft-backend under a new group called RiseCraft"
+claude: <calls reef_create_group> then <calls reef_assign_group>
+        done — now grouped.
+
+you:    "reef, where did I leave off in E--CCIsaam?"
+claude: <calls reef_resume> → shows last session stats + top tools
+```
+
+### Tools exposed
+
+| Tool                 | Purpose                                                  |
+|----------------------|----------------------------------------------------------|
+| `reef_status`        | Health check                                             |
+| `reef_report`        | Markdown weekly report (grouped)                         |
+| `reef_resume`        | "Where did I leave off" card for a project               |
+| `reef_list_projects` | All CC folders with their group                          |
+| `reef_list_groups`   | All groups with members & company                        |
+| `reef_create_group`  | Create a new group                                       |
+| `reef_assign_group`  | Link a folder to a group                                 |
+| `reef_unassign`      | Remove a folder from its group                           |
+| `reef_scan`          | Force a DB refresh (normally automatic via Stop hook)    |
+
+---
+
 ## 📜 Commands
 
 | Command | Purpose |
@@ -243,6 +296,8 @@ reef status
 | `reef report [--days N]` | Generate a markdown activity report |
 | `reef install-hooks [--dry-run]` | Register reef hooks in `~/.claude/settings.json` |
 | `reef uninstall-hooks` | Remove reef's hooks (backs up first) |
+| `reef mcp` | Run reef as an MCP server over stdio |
+| `reef report-bug` | Open a prefilled, sanitised GitHub issue |
 
 ---
 
@@ -314,8 +369,9 @@ reef status
 - [x] Interactive groups wizard (no JSON editing)
 - [x] Markdown reports grouped by company → product
 - [x] Health check
-- [ ] `reef report-bug` — prefilled GitHub issue from sanitised logs
-- [ ] Tighten nudge regex (reduce false positives on `tail -n`, heredocs)
+- [x] `reef report-bug` — prefilled GitHub issue from sanitised logs
+- [x] Tighten nudge regex (no more `tail -n` / heredoc false positives)
+- [x] **MCP server** — Claude invokes reef tools directly, no terminal needed
 - [ ] Ink-based TUI dashboard (`reef` with no args)
 - [ ] Publish to npm
 - [ ] Optional cross-machine config sync
