@@ -87,10 +87,12 @@ Weekly markdown of your real habits.
 git clone https://github.com/IsaamMJ/cc-reef.git
 cd cc-reef
 npm install && npm run build
-node dist/cli.js install-hooks
+node dist/cli.js init
 ```
 
-Open your next Claude Code session. reef is already working.
+`reef init` is a single idempotent command that installs hooks, registers the MCP server with Claude Code, runs the first scan, and auto-groups your project folders. Safe to re-run anytime.
+
+Restart Claude Code once after init so the MCP server loads.
 
 > [!TIP]
 > Requires **Node.js 22+** — reef uses the built-in `node:sqlite` so you never deal with native build tools.
