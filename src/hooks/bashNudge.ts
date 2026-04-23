@@ -8,28 +8,80 @@ interface BashNudgeInput {
 }
 
 interface NudgeRule {
-  pattern: RegExp;
-  message: string;
+  name: string;
+  test: (cmd: string) => string | null;
 }
 
-// Patterns where a native CC tool is strictly better than shelling out:
-// Grep/Glob/Read return trimmed, structured results and avoid shell escaping bugs.
+/**
+ * A command's first pipeline segment — the part before any `|`.
+ * Used so rules only consider the process that actually runs first;
+ * a command like `foo | tail -5` shouldn't trigger the Read nudge.
+ */
+function firstSegment(cmd: string): string {
+  const pipe = cmd.indexOf('|');
+  return (pipe >= 0 ? cmd.slice(0, pipe) : cmd).trim();
+}
+
+function looksLikePath(tok: string): boolean {
+  if (tok.startsWith('-')) return false;
+  if (tok.length < 2) return false;
+  // Has a path separator, or looks like a filename with extension,
+  // or is a dotfile (e.g. `.env`).
+  return /[/\\]/.test(tok) || /\.[a-zA-Z0-9]+$/.test(tok) || /^\.[a-zA-Z]/.test(tok);
+}
+
 const RULES: NudgeRule[] = [
   {
-    pattern: /(^|\s|\|)\s*(rg|grep)\b/,
-    message: 'Use the Grep tool instead of rg/grep — faster and returns structured matches.',
+    name: 'grep',
+    test: (cmd) =>
+      /(^|\s|\|)\s*(rg|grep)\b/.test(cmd)
+        ? 'Use the Grep tool instead of rg/grep — faster, structured results, no shell escaping.'
+        : null,
   },
   {
-    pattern: /(^|\s|\|)\s*find\b/,
-    message: 'Use the Glob tool instead of `find` — simpler and respects .gitignore.',
+    name: 'find',
+    test: (cmd) => {
+      const seg = firstSegment(cmd);
+      // Skip `find . -exec ...` style only when it's clearly the first thing.
+      return /^find\b/.test(seg)
+        ? 'Use the Glob tool instead of `find` — simpler and gitignore-aware.'
+        : null;
+    },
   },
   {
-    pattern: /(^|\s|\|)\s*(cat|head|tail)\b/,
-    message: 'Use the Read tool for files — it handles offsets, truncation, and binary safely.',
+    name: 'sed',
+    test: (cmd) =>
+      /(^|\s|\|)\s*sed\b/.test(cmd)
+        ? 'Use the Edit tool for file edits — sed is brittle and cross-platform hostile.'
+        : null,
   },
   {
-    pattern: /(^|\s|\|)\s*sed\b/,
-    message: 'Use the Edit tool for file edits — sed is brittle and error-prone on Windows.',
+    name: 'cat-head-tail',
+    test: (cmd) => {
+      // Only fire for the FIRST pipeline segment — pagination on a pipe output is fine.
+      const seg = firstSegment(cmd);
+      const m = seg.match(/^(cat|head|tail)\b\s*(.*)$/);
+      if (!m) return null;
+
+      const args = (m[2] ?? '').trim();
+
+      // Heredoc / process substitution is not a file read — skip.
+      if (/^<<-?/.test(args)) return null;
+      // Stdin redirection (`tail < foo`) — unusual, skip to avoid noise.
+      if (args.startsWith('<')) return null;
+      // No args at all (`tail` reading stdin in a pipeline): skip.
+      if (args.length === 0) return null;
+
+      const tokens = args.split(/\s+/).filter((t) => t.length > 0);
+      const nonFlagTokens = tokens.filter((t) => !t.startsWith('-'));
+
+      // If every token is a flag (e.g. `tail -n 5` with no file), it's pagination.
+      if (nonFlagTokens.length === 0) return null;
+      // At least one token must look like a file path.
+      if (!nonFlagTokens.some(looksLikePath)) return null;
+
+      return 'Use the Read tool for files — it handles offsets, truncation, and binary safely.';
+    },
   },
 ];
 
@@ -39,12 +91,13 @@ export async function bashNudge(input: BashNudgeInput): Promise<unknown> {
   if (typeof cmd !== 'string' || cmd.length === 0) return {};
 
   for (const rule of RULES) {
-    if (rule.pattern.test(cmd)) {
-      log.info('bash nudge fired', { rule: rule.message });
+    const msg = rule.test(cmd);
+    if (msg) {
+      log.info('bash nudge fired', { rule: rule.name });
       return {
         hookSpecificOutput: {
           hookEventName: 'PreToolUse',
-          additionalContext: `[reef] ${rule.message}`,
+          additionalContext: `[reef] ${msg}`,
         },
       };
     }

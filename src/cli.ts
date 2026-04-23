@@ -12,6 +12,7 @@ import { installHooks, uninstallHooks } from './installHooks.js';
 import { runHook } from './hooks/runner.js';
 import { getStatus, printStatus } from './status.js';
 import { writeReport } from './report.js';
+import { reportBug, previewBugReport } from './reportBug.js';
 
 const program = new Command();
 
@@ -103,6 +104,32 @@ program
     console.log('reef uninstall-hooks');
     if (result.backupPath) console.log(`  backup       : ${result.backupPath}`);
     console.log(`  removed      : ${result.removed}`);
+  });
+
+program
+  .command('report-bug')
+  .description('Open a prefilled GitHub issue with a sanitised recent log')
+  .option('--no-open', "don't open the browser, just print the URL")
+  .option('--print', 'print the sanitised log to stdout and exit')
+  .option('-t, --title <title>', 'issue title (default "[bug] ")')
+  .action((opts: { open?: boolean; print?: boolean; title?: string }) => {
+    if (opts.print) {
+      console.log(previewBugReport());
+      return;
+    }
+    const result = reportBug({
+      noOpen: opts.open === false,
+      title: opts.title,
+    });
+    console.log('reef report-bug');
+    console.log(`  log lines included : ${result.logLinesIncluded}`);
+    console.log(`  body length        : ${result.bodyLength} chars`);
+    if (opts.open === false) {
+      console.log('\nURL:');
+      console.log(result.url);
+    } else {
+      console.log('\nOpening issue in your browser. Review and submit when ready.');
+    }
   });
 
 program
