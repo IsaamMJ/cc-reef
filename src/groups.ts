@@ -118,6 +118,57 @@ export function unlinkProject(cfg: ReefConfig, project: string): ReefConfig {
   return cfg;
 }
 
+export function renameGroup(
+  cfg: ReefConfig,
+  oldName: string,
+  newName: string,
+): ReefConfig {
+  if (!cfg.groups[oldName]) {
+    throw new ConfigError(`Group "${oldName}" not found`, REEF_CONFIG);
+  }
+  if (oldName === newName) return cfg;
+  if (cfg.groups[newName]) {
+    throw new ConfigError(`Group "${newName}" already exists`, REEF_CONFIG);
+  }
+  cfg.groups[newName] = cfg.groups[oldName]!;
+  delete cfg.groups[oldName];
+  return cfg;
+}
+
+export function mergeGroups(
+  cfg: ReefConfig,
+  sourceName: string,
+  targetName: string,
+): ReefConfig {
+  if (sourceName === targetName) return cfg;
+  const source = cfg.groups[sourceName];
+  const target = cfg.groups[targetName];
+  if (!source) {
+    throw new ConfigError(`Source group "${sourceName}" not found`, REEF_CONFIG);
+  }
+  if (!target) {
+    throw new ConfigError(`Target group "${targetName}" not found`, REEF_CONFIG);
+  }
+  for (const p of source.projects) {
+    if (!target.projects.includes(p)) target.projects.push(p);
+  }
+  target.projects.sort();
+  delete cfg.groups[sourceName];
+  return cfg;
+}
+
+export function setGroupCompany(
+  cfg: ReefConfig,
+  name: string,
+  company: string | undefined,
+): ReefConfig {
+  const g = cfg.groups[name];
+  if (!g) throw new ConfigError(`Group "${name}" not found`, REEF_CONFIG);
+  if (company && company.trim()) g.company = company.trim();
+  else delete g.company;
+  return cfg;
+}
+
 export function getUnassignedProjects(
   cfg: ReefConfig,
   allProjects: string[],

@@ -15,11 +15,15 @@ import {
   addGroup as addGroupData,
   linkProject,
   unlinkProject,
+  renameGroup,
+  mergeGroups,
+  setGroupCompany,
   getGroupForProject,
   getUnassignedProjects,
   listGroupNames,
   UNGROUPED,
 } from './groups.js';
+import { runAutoGroup } from './autoGroup.js';
 import { listProjectFolders } from './projects.js';
 import { log } from './log.js';
 import { formatError } from './formatError.js';
@@ -125,6 +129,68 @@ const TOOLS: Tool[] = [
         project: { type: 'string', description: 'Project folder name.' },
       },
       required: ['project'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'reef_autogroup',
+    description:
+      'Automatically group unassigned project folders by name similarity. ' +
+      'Strips common prefixes/suffixes, ignores structural tokens like ' +
+      '"backend" or "nextjs", and clusters folders that share a 4-char ' +
+      'prefix. Only clusters with 2+ members become groups — singletons ' +
+      'stay ungrouped. Returns a diff showing what was created and which ' +
+      'folders were left alone so the caller can rename, merge, or assign ' +
+      'them manually via reef_rename_group / reef_merge_groups / reef_assign_group.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dryRun: {
+          type: 'boolean',
+          description: 'Compute what would change without writing config.',
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'reef_rename_group',
+    description: 'Rename an existing group. Useful after reef_autogroup picks a generic name.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        oldName: { type: 'string' },
+        newName: { type: 'string' },
+      },
+      required: ['oldName', 'newName'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'reef_merge_groups',
+    description:
+      'Merge source group into target group: all source folders move to ' +
+      'the target, and the source group is deleted.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        source: { type: 'string', description: 'Source group name (will be deleted).' },
+        target: { type: 'string', description: 'Target group name (receives the folders).' },
+      },
+      required: ['source', 'target'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'reef_set_company',
+    description: 'Set or clear the company label on an existing group. Pass empty string to clear.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        group: { type: 'string' },
+        company: { type: 'string' },
+      },
+      required: ['group', 'company'],
       additionalProperties: false,
     },
   },
@@ -289,6 +355,49 @@ async function handleCall(
             topTools: topTools.map((t) => ({ tool: t.tool_name, count: t.c })),
           },
         });
+      }
+
+      case 'reef_autogroup': {
+        const result = runAutoGroup({ dryRun: a.dryRun === true });
+        return ok({
+          ...result,
+          summary: result.dryRun
+            ? `[dry run] Would create ${result.created.length} group(s) from ${result.totalProjects - result.alreadyGrouped.length} unassigned folders.`
+            : `Created ${result.created.length} group(s). ${result.skippedSingletons.length} folder(s) stayed ungrouped (no obvious cluster).`,
+        });
+      }
+
+      case 'reef_rename_group': {
+        const o = a.oldName;
+        const n = a.newName;
+        if (typeof o !== 'string' || !o.trim()) return errResponse('oldName is required');
+        if (typeof n !== 'string' || !n.trim()) return errResponse('newName is required');
+        const cfg = loadConfig();
+        renameGroup(cfg, o, n);
+        saveConfig(cfg);
+        return ok({ renamed: { from: o, to: n } });
+      }
+
+      case 'reef_merge_groups': {
+        const s = a.source;
+        const t = a.target;
+        if (typeof s !== 'string' || !s.trim()) return errResponse('source is required');
+        if (typeof t !== 'string' || !t.trim()) return errResponse('target is required');
+        const cfg = loadConfig();
+        mergeGroups(cfg, s, t);
+        saveConfig(cfg);
+        return ok({ merged: { from: s, into: t } });
+      }
+
+      case 'reef_set_company': {
+        const g = a.group;
+        const c = a.company;
+        if (typeof g !== 'string' || !g.trim()) return errResponse('group is required');
+        if (typeof c !== 'string') return errResponse('company must be a string (pass "" to clear)');
+        const cfg = loadConfig();
+        setGroupCompany(cfg, g, c);
+        saveConfig(cfg);
+        return ok({ group: g, company: c || null });
       }
 
       case 'reef_scan': {

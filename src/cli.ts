@@ -14,6 +14,7 @@ import { getStatus, printStatus } from './status.js';
 import { writeReport } from './report.js';
 import { reportBug, previewBugReport } from './reportBug.js';
 import { runMcpServer } from './mcp.js';
+import { runAutoGroup } from './autoGroup.js';
 
 const program = new Command();
 
@@ -156,6 +157,25 @@ program
       console.log(`reef report written to ${outFile}`);
     } else {
       process.stdout.write(content);
+    }
+  });
+
+program
+  .command('autogroup')
+  .description('Auto-group unassigned project folders by name similarity')
+  .option('--dry-run', 'show what would happen without writing config')
+  .action((opts: { dryRun?: boolean }) => {
+    const r = runAutoGroup({ dryRun: opts.dryRun });
+    console.log(`reef autogroup${r.dryRun ? ' (dry run)' : ''}`);
+    console.log(`  total projects      : ${r.totalProjects}`);
+    console.log(`  already grouped     : ${r.alreadyGrouped.length}`);
+    console.log(`  new groups created  : ${r.created.length}`);
+    for (const g of r.created) {
+      console.log(`    - ${g.group}: ${g.projects.join(', ')}`);
+    }
+    console.log(`  ungrouped singletons: ${r.skippedSingletons.length}`);
+    for (const s of r.skippedSingletons) {
+      console.log(`    - ${s}`);
     }
   });
 
