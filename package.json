@@ -1,24 +1,47 @@
 {
   "name": "cc-reef",
-  "version": "0.0.1",
-  "description": "Claude Code effectiveness analyzer and context recovery tool",
+  "version": "0.0.2",
+  "description": "Local-first effectiveness analyzer and context-recovery layer for Claude Code. Groups projects by company/product, injects resume cards, nudges wasteful Bash use, and generates weekly reports.",
   "type": "module",
   "bin": {
     "reef": "./dist/cli.js"
   },
   "main": "./dist/cli.js",
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/cli.ts",
     "start": "node dist/cli.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "tsc --noEmit && tsc"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
+  "keywords": [
+    "claude-code",
+    "claude",
+    "ai",
+    "productivity",
+    "analytics",
+    "mcp",
+    "developer-tools",
+    "cli"
+  ],
+  "author": "Isaam MJ",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IsaamMJ/cc-reef.git"
+  },
+  "bugs": {
+    "url": "https://github.com/IsaamMJ/cc-reef/issues"
+  },
+  "homepage": "https://github.com/IsaamMJ/cc-reef#readme",
   "dependencies": {
     "@inquirer/prompts": "^8.4.2",
     "@modelcontextprotocol/sdk": "^1.29.0",
