@@ -15,6 +15,7 @@ import { writeReport } from './report.js';
 import { reportBug, previewBugReport } from './reportBug.js';
 import { runMcpServer } from './mcp.js';
 import { runAutoGroup } from './autoGroup.js';
+import { runInit } from './init.js';
 
 const program = new Command();
 
@@ -25,9 +26,25 @@ program
 
 program
   .command('init')
+  .description('One-command setup: install hooks + register MCP + scan + autogroup')
+  .option('--skip-hooks', 'do not install Claude Code hooks')
+  .option('--skip-mcp', 'do not register the MCP server')
+  .option('--skip-scan', 'do not run the first scan')
+  .option('--skip-autogroup', 'do not auto-group folders')
+  .action(async (opts: { skipHooks?: boolean; skipMcp?: boolean; skipScan?: boolean; skipAutogroup?: boolean }) => {
+    log.info('init invoked', { opts });
+    await runInit({
+      skipHooks: opts.skipHooks,
+      skipMcp: opts.skipMcp,
+      skipScan: opts.skipScan,
+      skipAutogroup: opts.skipAutogroup,
+    });
+  });
+
+program
+  .command('paths')
   .description('Show configured paths')
   .action(() => {
-    log.info('init invoked');
     console.log('reef paths');
     console.log(`  Claude projects     : ${CLAUDE_PROJECTS}`);
     console.log(`  Reef data dir       : ${REEF_HOME}`);
