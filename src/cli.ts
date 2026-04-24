@@ -16,6 +16,11 @@ import { reportBug, previewBugReport } from './reportBug.js';
 import { runMcpServer } from './mcp.js';
 import { runAutoGroup } from './autoGroup.js';
 import { runInit } from './init.js';
+import {
+  runStatusline,
+  installStatusline,
+  uninstallStatusline,
+} from './statusline.js';
 
 const program = new Command();
 
@@ -175,6 +180,44 @@ program
     } else {
       process.stdout.write(content);
     }
+  });
+
+const statuslineCmd = program
+  .command('statusline')
+  .description('Claude Code status line integration (install / uninstall / run)');
+
+statuslineCmd
+  .command('install')
+  .description('Wrap your current status line so reef appends a company/group segment')
+  .option('--cli-path <path>', 'explicit path to compiled cli.js (dev override)')
+  .action((opts: { cliPath?: string }) => {
+    const r = installStatusline({ cliPath: opts.cliPath });
+    console.log(`reef statusline ${r.action}`);
+    console.log(`  settings       : ${r.settingsPath}`);
+    if (r.backupPath) console.log(`  backup         : ${r.backupPath}`);
+    if (r.previousCommand)
+      console.log(`  now wrapping   : ${r.previousCommand}`);
+    else
+      console.log('  no prior status line — reef runs alone');
+    console.log(`  new command    : ${r.newCommand}`);
+    console.log('\nRestart Claude Code to see the new status line.');
+  });
+
+statuslineCmd
+  .command('uninstall')
+  .description("Remove reef from the status line and restore your previous command")
+  .action(() => {
+    const r = uninstallStatusline();
+    console.log('reef statusline uninstalled');
+    if (r.backupPath) console.log(`  backup         : ${r.backupPath}`);
+    console.log(`  restored       : ${r.restored ?? '(no previous command)'}`);
+  });
+
+statuslineCmd
+  .command('run', { hidden: true })
+  .description('(internal) emit the current status line — invoked by Claude Code')
+  .action(async () => {
+    await runStatusline();
   });
 
 program
