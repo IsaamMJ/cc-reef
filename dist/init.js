@@ -27,7 +27,11 @@ function tryRegisterMcp(cliPath) {
     if (get.status === 0) {
         return { status: 'already' };
     }
-    const add = spawnSync('claude', ['mcp', 'add', 'reef', '--', 'node', cliPath, 'mcp'], { encoding: 'utf8' });
+    // Use --scope user so reef is available in every Claude Code session,
+    // not just the project directory where init was run. Without this,
+    // `claude mcp add` defaults to local scope and reef silently "vanishes"
+    // the moment the user opens a different project.
+    const add = spawnSync('claude', ['mcp', 'add', '--scope', 'user', 'reef', '--', 'node', cliPath, 'mcp'], { encoding: 'utf8' });
     if (add.status !== 0) {
         return {
             status: 'failed',
