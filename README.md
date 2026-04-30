@@ -2,21 +2,45 @@
 
 # 🪸 cc-reef
 
-### *Your Claude Code work, organised the way you actually think.*
+### *The doc layer that survives AI-assisted refactoring.*
 
-A local-first effectiveness analyzer and context-recovery layer for [Claude Code](https://claude.com/claude-code).
-
+[![Status: Archived](https://img.shields.io/badge/status-archived-red.svg)](POSTMORTEM.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-43853d.svg)](https://nodejs.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178c6.svg)](https://www.typescriptlang.org/)
-[![Zero Deps](https://img.shields.io/badge/runtime%20deps-2-brightgreen.svg)](package.json)
-[![Local First](https://img.shields.io/badge/100%25-local-ff69b4.svg)](#-privacy--safety)
 
 </div>
 
 ---
 
-## 💡 The problem nobody else solves
+> ## ⚠️ Project archived — failed
+>
+> **As of 2026-04-30, cc-reef is archived and no longer maintained.**
+>
+> The mental model (truth hierarchy, code-vs-doc verdicts, living-truth-first methodology) was sound. The implementation was not — it was built as a separate web app with xAI Grok as a second LLM, doing work that Claude Code with native filesystem + git access could do more reliably for free.
+>
+> **The replacement** is a Claude Code skill (one Markdown file at `.claude/skills/audit-doc.md`) that encodes the audit playbook. Trigger with `/audit <doc>` in your IDE — Claude reads CLAUDE.md, the doc, greps code, checks git, writes findings to `.cc-reef/audits/<doc>-<timestamp>.md`, and edits files natively when you ask.
+>
+> Read the full retrospective: **[POSTMORTEM.md](POSTMORTEM.md)** — what worked, what didn't, why it failed, and the lessons that survive.
+
+---
+
+A local-first decision-capture, drift-detection, and living-docs layer for [Claude Code](https://claude.com/claude-code) and any agent framework on top of it.
+
+---
+
+## 💡 The real problem
+
+You start a project with a clean PRD and TDD. Then you spend two weeks pair-programming with Claude. By Friday: the code has moved, the docs haven't. Architectural pivots happened in conversation and were never written down. Three months later, *no one remembers what was decided about auth*.
+
+Reef solves that. Every session it watches:
+
+- **Captures decisions** automatically (`reef_log_decision` MCP tool + LLM-suggested at session end).
+- **Detects drift** in real time (PostToolUse hook re-checks claims after every edit).
+- **Patches docs** when reality changes (LLM proposes diffs; you approve in a web UI).
+
+It also still does the original group-by-product analytics, because once you've worked on 18 folders across 4 companies, you stop wanting flat lists.
+
+### Multi-product organisation (still here)
 
 You work across **multiple clients**. Each client has **multiple repos** — a backend, a website, maybe a mobile app. Claude Code sees 18 flat folders. *You* see 4 real products across 3 companies.
 
@@ -350,7 +374,11 @@ claude: <calls reef_resume> → shows last session stats + top tools
 ## 🔒 Privacy & safety
 
 > [!IMPORTANT]
-> **Nothing ever leaves your machine.** No server. No account. No telemetry. No analytics.
+> **Reef itself never phones home.** No server. No account. No telemetry. No analytics.
+>
+> **Optional caveat:** if you opt in to AI-powered summaries by setting `NIM_API_KEY`,
+> reef sends transcript fragments to NVIDIA's NIM API to generate summaries. The default
+> install never sets this — without that env var, reef is fully local.
 
 - `install-hooks` **auto-backs up** `~/.claude/settings.json` before writing.
 - Reef hooks **never block or crash** CC — any internal error is logged and swallowed.

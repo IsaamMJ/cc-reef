@@ -1,7 +1,7 @@
 {
   "name": "cc-reef",
-  "version": "0.0.2",
-  "description": "Local-first effectiveness analyzer and context-recovery layer for Claude Code. Groups projects by company/product, injects resume cards, nudges wasteful Bash use, and generates weekly reports.",
+  "version": "0.1.0",
+  "description": "The doc layer that survives AI-assisted refactoring. Captures architectural decisions, detects drift between code and docs in real time, proposes doc patches via LLM. Local-first. Works with Claude Code and OMC.",
   "type": "module",
   "bin": {
     "reef": "./dist/cli.js"

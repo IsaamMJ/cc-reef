@@ -1,6 +1,6 @@
 import { createReadStream } from 'node:fs';
 import { createInterface } from 'node:readline';
-import { TranscriptParseError } from './errors.js';
+import { log } from './log.js';
 
 /**
  * Shape of events we care about in Claude Code JSONL transcripts.
@@ -32,14 +32,26 @@ export interface ParsedLine {
   event: RawEvent;
 }
 
+export interface ParseFailure {
+  lineNo: number;
+  parseError: string;
+}
+
+export type ParserYield = ParsedLine | ParseFailure;
+
+export function isParseFailure(y: ParserYield): y is ParseFailure {
+  return (y as ParseFailure).parseError !== undefined;
+}
+
 /**
  * Stream a JSONL file line by line, yielding parsed events.
- * Malformed lines throw TranscriptParseError with file+line context so
- * the caller can decide whether to skip or halt.
+ * One bad line cannot halt iteration — malformed lines yield a `ParseFailure`
+ * (with file+line context) and the loop continues. The caller decides what
+ * to do with parse failures (count them, log, etc.).
  */
 export async function* parseJsonl(
   filePath: string,
-): AsyncGenerator<ParsedLine, void, void> {
+): AsyncGenerator<ParserYield, void, void> {
   const rl = createInterface({
     input: createReadStream(filePath, { encoding: 'utf8' }),
     crlfDelay: Infinity,
@@ -52,11 +64,9 @@ export async function* parseJsonl(
     try {
       yield { lineNo, event: JSON.parse(line) as RawEvent };
     } catch (e) {
-      throw new TranscriptParseError(
-        `Invalid JSON: ${(e as Error).message}`,
-        filePath,
-        lineNo,
-      );
+      const msg = (e as Error).message;
+      log.warn('parser: bad line skipped', { filePath, lineNo, err: msg });
+      yield { lineNo, parseError: msg };
     }
   }
 }

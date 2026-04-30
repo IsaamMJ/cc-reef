@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { loadDotEnv } from './dotenv.js';
+loadDotEnv();
 import { Command } from 'commander';
 import { log } from './log.js';
 import { formatError } from './formatError.js';
@@ -12,6 +14,19 @@ import { installHooks, uninstallHooks } from './installHooks.js';
 import { runHook } from './hooks/runner.js';
 import { getStatus, printStatus } from './status.js';
 import { writeReport } from './report.js';
+import { generateRetro } from './retro.js';
+import { startServer } from './server.js';
+import { summarizeRecent } from './summarize.js';
+import { nimAvailable } from './nim.js';
+import {
+  listAllOverviews,
+  getOverview,
+  listFyiEntries,
+  searchKnowledge,
+  pruneFyiBefore,
+  pruneFyiByIndex,
+  exportKnowledge,
+} from './knowledge.js';
 import { reportBug, previewBugReport } from './reportBug.js';
 import { runMcpServer } from './mcp.js';
 import { runAutoGroup } from './autoGroup.js';
@@ -21,6 +36,13 @@ import {
   installStatusline,
   uninstallStatusline,
 } from './statusline.js';
+import {
+  readCompanyContext,
+  readProjectIntent,
+  readFyiRecent,
+  listAdrs,
+} from './context.js';
+import { loadConfig, saveConfig, setGroupTrust, getGroupTrust, TrustTier } from './groups.js';
 
 const program = new Command();
 
@@ -182,6 +204,16 @@ program
     }
   });
 
+program
+  .command('retro')
+  .description('Coaching-style weekly retro on how you used Claude Code (wins, fixes, one prescription)')
+  .option('-d, --days <n>', 'look back N days (default 7)', (v) => parseInt(v, 10), 7)
+  .option('--since <iso>', 'look back since ISO timestamp (overrides --days)')
+  .action((opts: { days?: number; since?: string }) => {
+    const content = generateRetro({ days: opts.days, since: opts.since });
+    process.stdout.write(content);
+  });
+
 const statuslineCmd = program
   .command('statusline')
   .description('Claude Code status line integration (install / uninstall / run)');
@@ -237,6 +269,177 @@ program
     for (const s of r.skippedSingletons) {
       console.log(`    - ${s}`);
     }
+  });
+
+const contextCmd = program
+  .command('context')
+  .description('View company and project context (company info, intent, decision log, ADRs)');
+
+contextCmd
+  .command('show <group>')
+  .description('Show all context for a group')
+  .action((group: string) => {
+    const cfg = loadConfig();
+    const def = cfg.groups[group];
+    if (!def) {
+      console.error(`Group "${group}" not found. Run: reef groups`);
+      process.exit(1);
+    }
+    const company = def.company ?? null;
+    const displayName = def.displayName ?? group;
+    console.log(`\nreef context — ${displayName}${company ? ` (${company})` : ''}`);
+    console.log('─'.repeat(50));
+    if (company) {
+      const cc = readCompanyContext(company);
+      console.log(`\n## Company: ${company}`);
+      console.log(cc ?? '  (none — ask Claude: "reef, set context for Jiive: ...")');
+    }
+    const intent = readProjectIntent(group);
+    console.log(`\n## Project Intent`);
+    console.log(intent ?? '  (none — ask Claude: "reef, set intent for this project: ...")');
+    const fyi = readFyiRecent(group, 10);
+    console.log(`\n## Recent Decisions (last 10)`);
+    console.log(fyi ?? '  (none — ask Claude to call reef_update_fyi after decisions)');
+    const adrs = listAdrs(group);
+    if (adrs.length > 0) {
+      console.log(`\n## ADRs (${adrs.length})`);
+      adrs.forEach((f) => console.log(`  - ${f}`));
+    }
+    console.log('');
+  });
+
+const knowledgeCmd = program
+  .command('knowledge')
+  .description('Manage what reef has learned (intent, fyi decisions, ADRs)');
+
+knowledgeCmd
+  .command('list [group]')
+  .description('Show knowledge overview for one group, or all groups if omitted')
+  .action((group?: string) => {
+    if (group) {
+      const o = getOverview(group);
+      console.log(`reef knowledge — ${o.groupKey}`);
+      console.log(`  intent       : ${o.hasIntent ? `${o.intentBytes} bytes` : '(none)'}`);
+      console.log(`  fyi entries  : ${o.fyiCount} (${o.fyiBytes} bytes)`);
+      console.log(`  ADRs         : ${o.adrCount}`);
+      const entries = listFyiEntries(group);
+      if (entries.length > 0) {
+        console.log(`\n  recent fyi:`);
+        for (const e of entries.slice(-5)) {
+          const preview = e.body.split('\n')[0]?.slice(0, 80) ?? '';
+          console.log(`    [${e.index}] ${e.date} — ${preview}`);
+        }
+      }
+      return;
+    }
+    const all = listAllOverviews();
+    console.log('reef knowledge');
+    console.log('  group                 intent  fyi  adrs');
+    for (const o of all) {
+      const intent = o.hasIntent ? '  ✓  ' : '  -  ';
+      console.log(`  ${o.groupKey.padEnd(20)} ${intent} ${String(o.fyiCount).padStart(4)} ${String(o.adrCount).padStart(5)}`);
+    }
+  });
+
+knowledgeCmd
+  .command('search <group> <query>')
+  .description('Search fyi entries and ADRs for a query string')
+  .action((group: string, query: string) => {
+    const r = searchKnowledge(group, query);
+    console.log(`reef knowledge search — "${query}" in ${group}`);
+    console.log(`  fyi matches : ${r.fyi.length}`);
+    for (const e of r.fyi) {
+      const preview = e.body.slice(0, 200).replace(/\n/g, ' ');
+      console.log(`    [${e.index}] ${e.date} — ${preview}`);
+    }
+    console.log(`  adr matches : ${r.adrs.length}`);
+    for (const a of r.adrs) {
+      console.log(`    ${a.file} — ...${a.snippet}...`);
+    }
+  });
+
+knowledgeCmd
+  .command('prune <group>')
+  .description('Remove fyi entries (by index or before a date)')
+  .option('--before <date>', 'remove entries dated before YYYY-MM-DD')
+  .option('--index <indices>', 'comma-separated indices to remove (e.g. 0,1,4)')
+  .action((group: string, opts: { before?: string; index?: string }) => {
+    if (!opts.before && !opts.index) {
+      console.error('Provide --before YYYY-MM-DD or --index 0,1,2');
+      process.exit(1);
+    }
+    let removed = 0;
+    if (opts.before) removed += pruneFyiBefore(group, opts.before);
+    if (opts.index) {
+      const idx = opts.index.split(',').map((s) => parseInt(s.trim(), 10)).filter((n) => !isNaN(n));
+      removed += pruneFyiByIndex(group, idx);
+    }
+    console.log(`reef knowledge prune — removed ${removed} fyi entr${removed === 1 ? 'y' : 'ies'} from ${group}`);
+  });
+
+knowledgeCmd
+  .command('export <group>')
+  .description('Print all knowledge for a group as one markdown bundle (for backup or sharing)')
+  .option('-o, --out <file>', 'write to file instead of stdout')
+  .action((group: string, opts: { out?: string }) => {
+    const md = exportKnowledge(group);
+    if (opts.out) {
+      const { writeFileSync } = require('node:fs');
+      writeFileSync(opts.out, md, 'utf8');
+      console.log(`reef knowledge exported to ${opts.out}`);
+    } else {
+      process.stdout.write(md);
+    }
+  });
+
+program
+  .command('summarize')
+  .description('Generate one-line AI summaries for recent sessions (requires NIM_API_KEY)')
+  .option('-n, --limit <n>', 'how many recent sessions to summarize', (v) => parseInt(v, 10), 20)
+  .option('--force', 'regenerate even if a summary already exists')
+  .action(async (opts: { limit?: number; force?: boolean }) => {
+    if (!nimAvailable()) {
+      console.error('NIM_API_KEY not set. Get a free key at https://build.nvidia.com and export NIM_API_KEY=...');
+      process.exit(1);
+    }
+    console.log(`reef summarize — up to ${opts.limit ?? 20} sessions (force=${!!opts.force})`);
+    const r = await summarizeRecent(opts.limit ?? 20, !!opts.force);
+    console.log(`  summarized : ${r.done}`);
+    console.log(`  skipped    : ${r.skipped}`);
+    console.log(`  failed     : ${r.failed}`);
+    closeDb();
+  });
+
+program
+  .command('serve')
+  .description('Run the reef web dashboard at localhost:7777')
+  .option('-p, --port <port>', 'port to listen on (default 7777)', (v) => parseInt(v, 10), 7777)
+  .action((opts: { port?: number }) => {
+    startServer(opts.port);
+  });
+
+program
+  .command('trust <group> [tier]')
+  .description('Show or set trust tier for a group: read-write | read-only | deny')
+  .action((group: string, tier?: string) => {
+    let cfg = loadConfig();
+    if (!cfg.groups[group]) {
+      console.error(`Group "${group}" not found`);
+      process.exit(1);
+    }
+    if (!tier) {
+      console.log(`reef trust — ${group}: ${getGroupTrust(cfg, group)}`);
+      return;
+    }
+    if (tier !== 'read-write' && tier !== 'read-only' && tier !== 'deny') {
+      console.error(`Invalid tier "${tier}". Use: read-write | read-only | deny`);
+      process.exit(1);
+    }
+    cfg = setGroupTrust(cfg, group, tier as TrustTier);
+    saveConfig(cfg);
+    console.log(`reef trust — ${group} set to ${tier}`);
+    if (tier === 'read-only') console.log('  Claude can read context but cannot write fyi/intent/ADRs.');
+    if (tier === 'deny') console.log('  Claude cannot read or write any context for this group.');
   });
 
 program

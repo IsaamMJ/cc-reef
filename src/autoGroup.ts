@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { userInfo } from 'node:os';
 import { listProjectFolders } from './projects.js';
 import {
   loadConfig,
@@ -6,18 +9,56 @@ import {
   linkProject,
   getGroupForProject,
 } from './groups.js';
+import { REEF_HOME } from './paths.js';
 import { log } from './log.js';
 
 /**
- * Tokens that are almost always structural, not product-defining.
- * Dropping them makes the "primary key" of a folder more distinctive.
+ * Generic structural tokens that appear across most users' folder hierarchies.
+ * These never carry product meaning, so dropping them sharpens the primary key.
  */
-const STOPWORDS = new Set([
-  'users', 'jahir', 'downloads', 'jiitak',
+const GENERIC_STOPWORDS = [
+  'users', 'user', 'home', 'documents', 'downloads', 'desktop',
   'next', 'nextjs', 'backend', 'frontend', 'admin',
-  'web', 'webapp', 'mobile', 'api', 'flutter',
-  'dxb', 'new', 'folder', 'projects', 'main', 'dev',
-]);
+  'web', 'webapp', 'mobile', 'api', 'flutter', 'server', 'client',
+  'new', 'folder', 'projects', 'project', 'main', 'dev', 'src', 'code',
+  'work', 'workspace', 'repos', 'repo', 'github',
+];
+
+/**
+ * Build the active stopword set: generic defaults + the current OS username
+ * (so personal folder paths don't pollute primary keys) + any user-supplied
+ * extras from ~/.cc-reef/autogroup.json.
+ */
+function buildStopwords(): Set<string> {
+  const out = new Set<string>(GENERIC_STOPWORDS);
+
+  try {
+    const username = userInfo().username?.toLowerCase();
+    if (username && username.length >= 3) out.add(username);
+  } catch {
+    // userInfo may throw in restricted environments — safe to ignore.
+  }
+
+  try {
+    const cfgPath = join(REEF_HOME, 'autogroup.json');
+    if (existsSync(cfgPath)) {
+      const raw = JSON.parse(readFileSync(cfgPath, 'utf8')) as {
+        stopwords?: string[];
+      };
+      if (Array.isArray(raw.stopwords)) {
+        for (const w of raw.stopwords) {
+          if (typeof w === 'string' && w.trim()) out.add(w.trim().toLowerCase());
+        }
+      }
+    }
+  } catch (e) {
+    log.warn('autogroup: could not load custom stopwords', { err: (e as Error).message });
+  }
+
+  return out;
+}
+
+const STOPWORDS = buildStopwords();
 
 /**
  * Common suffix fragments attached directly to a product name

@@ -3,6 +3,19 @@ import { dirname } from 'node:path';
 import { REEF_CONFIG, REEF_HOME } from './paths.js';
 import { ConfigError } from './errors.js';
 import { log } from './log.js';
+export function getGroupTrust(cfg, name) {
+    const g = cfg.groups[name];
+    if (!g)
+        return 'read-write';
+    return g.trust ?? 'read-write';
+}
+export function setGroupTrust(cfg, name, trust) {
+    const g = cfg.groups[name];
+    if (!g)
+        throw new ConfigError(`Group "${name}" not found`, REEF_CONFIG);
+    g.trust = trust;
+    return cfg;
+}
 export const UNGROUPED = '(ungrouped)';
 function emptyConfig() {
     return { version: 1, groups: {} };
@@ -124,6 +137,22 @@ export function setGroupCompany(cfg, name, company) {
     else
         delete g.company;
     return cfg;
+}
+export function setGroupDisplayName(cfg, name, displayName) {
+    const g = cfg.groups[name];
+    if (!g)
+        throw new ConfigError(`Group "${name}" not found`, REEF_CONFIG);
+    if (displayName && displayName.trim())
+        g.displayName = displayName.trim();
+    else
+        delete g.displayName;
+    return cfg;
+}
+export function getGroupDisplayName(cfg, name) {
+    const g = cfg.groups[name];
+    if (!g)
+        return name;
+    return g.displayName || name;
 }
 export function getUnassignedProjects(cfg, allProjects) {
     const assigned = new Set();

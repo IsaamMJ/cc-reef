@@ -1,6 +1,8 @@
 import { basename, dirname } from 'node:path';
 import { getDb } from '../db.js';
-import { loadConfig, getGroupForProject } from '../groups.js';
+import { loadConfig, getGroupForProject, getGroupDisplayName } from '../groups.js';
+import { readDecisions } from '../docs.js';
+import { readDriftReport } from '../drift.js';
 import { log } from '../log.js';
 
 interface SessionStartInput {
@@ -13,6 +15,7 @@ interface SessionStartInput {
 interface LastSessionRow {
   session_id: string;
   project: string;
+  started_at: string | null;
   ended_at: string | null;
   turn_count: number;
   tool_call_count: number;
@@ -67,7 +70,7 @@ export async function sessionStart(
     const db = getDb();
     const row = db
       .prepare(
-        `SELECT session_id, project, ended_at, turn_count, tool_call_count,
+        `SELECT session_id, project, started_at, ended_at, turn_count, tool_call_count,
                 total_input_tokens, total_output_tokens, total_cache_read_tokens,
                 primary_model
          FROM sessions
@@ -98,8 +101,8 @@ export async function sessionStart(
   const group = getGroupForProject(cfg, project);
   const label = group
     ? (cfg.groups[group]?.company
-        ? `${group} (${cfg.groups[group]!.company})`
-        : group)
+        ? `${getGroupDisplayName(cfg, group)} (${cfg.groups[group]!.company})`
+        : getGroupDisplayName(cfg, group))
     : project;
 
   const lines: string[] = [];
@@ -118,11 +121,54 @@ export async function sessionStart(
         `${formatTokens(tokens)} tokens, ` +
         `model: ${lastSession.primary_model ?? 'n/a'})`,
     );
+    // Sanity hint: extreme turn counts often mean multiple sessions got merged
+    // into a single transcript file (e.g. /resume across many starts).
+    if (lastSession.turn_count > 1000) {
+      lines.push(
+        `(note: ${lastSession.turn_count} turns is unusually high — this may aggregate multiple resumed sessions in one transcript.)`,
+      );
+    }
     if (topTools.length > 0) {
       const summary = topTools
         .map((t) => `${t.tool_name}×${t.c}`)
         .join(', ');
       lines.push(`Top tools last time: ${summary}`);
+    }
+  }
+
+  if (group) {
+    lines.push('Auto-log significant technical or architectural decisions using reef_log_decision (group: ' + group + ').');
+
+    try {
+      const drift = readDriftReport(group);
+      if (drift && drift.totals.violations > 0) {
+        const top = drift.results.find((r) => r.status === 'violation');
+        const example = top ? `e.g. "${top.claim.description}" (${top.violations[0]?.file ?? '?'})` : '';
+        lines.push(`⚠️  ${drift.totals.violations} drift violation(s) since last check${example ? ' — ' + example : ''}.`);
+      }
+    } catch (e) {
+      log.warn('session-start: drift surface failed', { err: (e as Error).message });
+    }
+
+    // If the last session looks substantial AND no decision has been logged since
+    // it started, nudge Claude to retro-log the key decisions before continuing.
+    if (lastSession && (lastSession.tool_call_count >= 50 || lastSession.turn_count >= 30)) {
+      try {
+        const decisions = readDecisions(group);
+        const sessionStartIso = lastSession.started_at ?? '';
+        const loggedSinceLastSession = decisions.some((d) => {
+          const k = d.ts ?? d.date ?? '';
+          return sessionStartIso && k >= sessionStartIso;
+        });
+        if (!loggedSinceLastSession) {
+          lines.push(
+            `Last session was substantial (${lastSession.turn_count} turns, ${lastSession.tool_call_count} tools) but no decisions were logged. ` +
+              `If any architectural decisions or pivots happened, retro-log them now via reef_log_decision before continuing.`,
+          );
+        }
+      } catch (e) {
+        log.warn('session-start: decision suggester failed', { err: (e as Error).message });
+      }
     }
   }
 

@@ -1,0 +1,2350 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>reef</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@13.0.0/marked.min.js"></script>
+<style>
+  /* ---- Theme system ---- */
+  :root, [data-theme="dark"] {
+    --bg: #0d1117; --panel: #161b22; --panel-2: #1c232b; --border: #30363d;
+    --text: #e6edf3; --text-strong: #ffffff; --muted: #8b949e;
+    --accent: #58a6ff; --accent-fg: #0d1117;
+    --green: #2ea043; --green-soft: rgba(46,160,67,0.18);
+    --red: #f85149; --red-soft: rgba(248,81,73,0.18);
+    --warn: #d29922; --warn-soft: rgba(210,153,34,0.18);
+    --coral: #ff6b6b;
+    --hover: rgba(255,255,255,0.06);
+    --hover-strong: rgba(255,255,255,0.10);
+    --row-line: rgba(255,255,255,0.06);
+    --code-bg: rgba(110,118,129,0.25);
+    --shadow: 0 8px 24px rgba(0,0,0,0.4);
+    --focus: #58a6ff;
+  }
+  [data-theme="light"] {
+    --bg: #ffffff; --panel: #f6f8fa; --panel-2: #eaeef2; --border: #d0d7de;
+    --text: #1f2328; --text-strong: #0a0c10; --muted: #57606a;
+    --accent: #0969da; --accent-fg: #ffffff;
+    --green: #1a7f37; --green-soft: rgba(26,127,55,0.14);
+    --red: #cf222e; --red-soft: rgba(207,34,46,0.12);
+    --warn: #9a6700; --warn-soft: rgba(154,103,0,0.14);
+    --coral: #cf222e;
+    --hover: rgba(31,35,40,0.06);
+    --hover-strong: rgba(31,35,40,0.10);
+    --row-line: rgba(31,35,40,0.06);
+    --code-bg: rgba(175,184,193,0.30);
+    --shadow: 0 6px 20px rgba(140,149,159,0.25);
+    --focus: #0969da;
+  }
+  /* Honour OS preference until the user picks. */
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme]) {
+      --bg: #ffffff; --panel: #f6f8fa; --panel-2: #eaeef2; --border: #d0d7de;
+      --text: #1f2328; --text-strong: #0a0c10; --muted: #57606a;
+      --accent: #0969da; --accent-fg: #ffffff;
+      --green: #1a7f37; --green-soft: rgba(26,127,55,0.14);
+      --red: #cf222e; --red-soft: rgba(207,34,46,0.12);
+      --warn: #9a6700; --warn-soft: rgba(154,103,0,0.14);
+      --coral: #cf222e;
+      --hover: rgba(31,35,40,0.06);
+      --hover-strong: rgba(31,35,40,0.10);
+      --row-line: rgba(31,35,40,0.06);
+      --code-bg: rgba(175,184,193,0.30);
+      --shadow: 0 6px 20px rgba(140,149,159,0.25);
+      --focus: #0969da;
+    }
+  }
+
+  /* ---- A11y baseline ---- */
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
+  :focus:not(:focus-visible) { outline: none; }
+  .visually-hidden { position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+  .skip-link { position:absolute; left:-9999px; top:8px; z-index:1000; background:var(--accent); color:var(--accent-fg); padding:8px 14px; border-radius:6px; font-size:13px; }
+  .skip-link:focus { left:8px; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg); color: var(--text); display: flex; min-height: 100vh;
+  }
+  aside {
+    width: 220px; background: var(--panel); border-right: 1px solid var(--border);
+    padding: 24px 16px; flex-shrink: 0;
+  }
+  aside h1 { font-size: 18px; margin: 0 0 24px; }
+  aside nav a {
+    display: block; padding: 8px 12px; color: var(--text); text-decoration: none;
+    border-radius: 6px; margin-bottom: 4px; font-size: 14px;
+  }
+  aside nav a:hover { background: var(--hover); }
+  aside nav a:focus-visible { outline-offset: -2px; }
+  aside nav a.active { background: var(--hover-strong); color: var(--accent); font-weight: 600; }
+  aside .theme-row { display:flex; gap:8px; align-items:center; margin-top:18px; padding-top:14px; border-top:1px solid var(--border); }
+  aside .theme-toggle { background:transparent; color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-size:12px; cursor:pointer; flex:1; display:flex; align-items:center; justify-content:center; gap:6px; }
+  aside .theme-toggle:hover { background: var(--hover); border-color: var(--accent); }
+  main { flex: 1; padding: 32px 40px; max-width: 1200px; }
+  h2 { margin: 0 0 8px; font-size: 22px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .totals { display: flex; gap: 24px; margin: 16px 0 24px; }
+  .totals .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; }
+  .totals .stat .v { font-size: 22px; font-weight: 600; }
+  .totals .stat .l { font-size: 12px; color: var(--muted); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+  .panel h3 { margin: 0 0 16px; font-size: 15px; font-weight: 600; }
+  .heatmap { display: grid; grid-template-columns: repeat(13, 1fr); gap: 3px; }
+  .heatmap .day { aspect-ratio: 1; border-radius: 2px; background: var(--row-line); }
+  .heatmap .day.l1 { background: rgba(46,160,67,0.3); }
+  .heatmap .day.l2 { background: rgba(46,160,67,0.55); }
+  .heatmap .day.l3 { background: rgba(46,160,67,0.8); }
+  .heatmap .day.l4 { background: var(--green); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table th { text-align: left; color: var(--muted); font-weight: 600; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  table td { padding: 8px 0; border-bottom: 1px solid var(--row-line); }
+  table tr:hover td { background: var(--hover); }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500; }
+  .badge.read-write { background: var(--green-soft); color: var(--green); }
+  .badge.read-only { background: var(--warn-soft); color: var(--warn); }
+  .badge.deny { background: var(--red-soft); color: var(--red); }
+  button {
+    background: var(--accent); color: var(--accent-fg); border: none; padding: 8px 16px;
+    border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;
+  }
+  button:hover { opacity: 0.9; }
+  button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  button.secondary:hover { background: var(--hover); border-color: var(--accent); }
+  button.danger { background: transparent; color: var(--red); border: 1px solid var(--red); }
+  button.danger:hover { background: var(--red-soft); }
+  textarea, input[type=text], input[type=search] {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); padding: 8px 10px; border-radius: 6px; font: inherit;
+  }
+  textarea { min-height: 120px; resize: vertical; font-family: 'SF Mono', Consolas, monospace; font-size: 13px; }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+  .tabs .tab { padding: 10px 16px; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; font-size: 14px; }
+  .tabs .tab.active { color: var(--accent); border-color: var(--accent); }
+  .card { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 14px; margin-bottom: 12px; }
+  .card .date { color: var(--muted); font-size: 12px; }
+  .card .body { margin: 6px 0; white-space: pre-wrap; }
+  .row-actions { display: flex; gap: 8px; }
+  .project-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 16px; cursor: pointer; transition: border-color 0.15s;
+  }
+  .project-card:hover { border-color: var(--accent); }
+  .project-card h4 { margin: 0 0 4px; font-size: 16px; }
+  .pgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+  pre { white-space: pre-wrap; font-family: 'SF Mono', Consolas, monospace; font-size: 13px; margin: 0; }
+  .search-result { padding: 12px; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .search-result:hover { background: var(--hover); }
+  .search-result:focus-visible { outline-offset: -2px; }
+  .search-result .meta { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+
+  /* Docs viewer (sidebar tree + reader) */
+  .docs-viewer { display: grid; grid-template-columns: 300px 1fr; gap: 20px; min-height: 70vh; }
+  .docs-tree { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px; overflow: auto; max-height: 80vh; }
+  .docs-tree .file {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+    padding: 8px 10px; border-radius: 5px; cursor: pointer; font-size: 14px;
+    color: var(--text); border: 1px solid transparent;
+  }
+  .docs-tree .file:hover { background: var(--hover); }
+  .docs-tree .file:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+  .docs-tree .file.active { background: var(--hover-strong); border-color: var(--accent); }
+  .docs-tree .file.active .fname { color: var(--accent); font-weight: 600; }
+  .docs-tree .file .frow { display:flex; width:100%; align-items:center; gap:6px; }
+  .docs-tree .file .fname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex:1; }
+  .docs-tree .file .fsynopsis { font-size: 12px; color: var(--muted); line-height: 1.4; padding-left: 2px; }
+  /* Click the doc to open it. Click ⋮ (or right-click the card) to group/ungroup. */
+  .docs-tree .file .fmove {
+    font-size: 14px; color: var(--muted); flex-shrink: 0; cursor: pointer;
+    padding: 2px 8px; border-radius: 4px; background: transparent;
+    border: 1px solid transparent; line-height: 1;
+    min-width: 24px; min-height: 22px; display: inline-flex; align-items: center; justify-content: center;
+  }
+  .docs-tree .file:hover .fmove { color: var(--text); border-color: var(--border); background: var(--bg); }
+  .docs-tree .file .fmove:hover, .docs-tree .file .fmove:focus-visible { color: var(--accent-fg); background: var(--accent); border-color: var(--accent); }
+  .docs-tree .file.dragging { opacity: 0.4; }
+  .docs-tree .file.drop-above { border-top: 2px solid var(--accent); }
+  .docs-tree .file.drop-below { border-bottom: 2px solid var(--accent); }
+  .docs-tree .group { margin-top: 12px; }
+  .docs-tree .group:first-child { margin-top: 0; }
+  .docs-tree .group.unsorted { opacity: 0.95; }
+  .docs-tree .group-head {
+    display:flex; align-items:center; gap:6px; padding: 8px 10px;
+    background: var(--panel-2); border-radius: 5px; cursor: grab;
+    border: 1px solid transparent;
+  }
+  .docs-tree .group-head:hover { background: var(--hover); }
+  .docs-tree .group-head:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+  .docs-tree .group-head .gname {
+    font-weight: 700; font-size: 13px; color: var(--text-strong); flex: 1;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .docs-tree .group-head .gname[contenteditable="true"] {
+    outline: 2px solid var(--accent); padding: 2px 4px; border-radius: 3px;
+    background: var(--bg); cursor: text;
+  }
+  .docs-tree .group-head .gdel {
+    font-size: 13px; color: var(--muted); cursor: pointer;
+    padding: 2px 6px; border-radius: 3px; background: transparent; border: 1px solid transparent;
+    min-width: 22px; min-height: 22px; display: inline-flex; align-items: center; justify-content: center;
+  }
+  .docs-tree .group-head .gdel { opacity: 0; }
+  .docs-tree .group-head:hover .gdel,
+  .docs-tree .group-head:focus-within .gdel { opacity: 1; }
+  .docs-tree .group-head .gdel:hover, .docs-tree .group-head .gdel:focus-visible { color: var(--red); border-color: var(--red); }
+  .docs-tree .group-head .gcount {
+    font-size: 11px; color: var(--muted); padding: 1px 7px;
+    background: var(--bg); border-radius: 10px; font-weight: 600;
+  }
+  .docs-tree .group-body { padding: 4px 0 4px 4px; min-height: 6px; display:flex; flex-direction: column; gap: 2px; }
+  .docs-tree .group-body.empty { min-height: 28px; border: 1px dashed transparent; border-radius: 4px; }
+  .docs-tree .group-body.drop-target { border-color: var(--accent); background: var(--hover); }
+  .docs-tree .add-group {
+    width:100%; margin-top: 14px; padding: 10px; background: transparent;
+    border: 1px dashed var(--border); color: var(--muted); border-radius: 5px;
+    cursor: pointer; font-size: 13px; font-weight: 500;
+  }
+  .docs-tree .add-group:hover, .docs-tree .add-group:focus-visible { color: var(--accent); border-color: var(--accent); background: var(--hover); }
+  .docs-tree .group.dragging { opacity: 0.4; }
+  .move-menu { position: fixed; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 6px 0; box-shadow: var(--shadow); z-index: 100; min-width: 200px; }
+  .move-menu div { padding: 8px 14px; cursor: pointer; font-size: 13px; color: var(--text); }
+  .move-menu div:hover, .move-menu div:focus-visible { background: var(--hover); color: var(--accent); outline: none; }
+  .move-menu .sep { border-top: 1px solid var(--border); margin: 4px 0; padding: 0; cursor: default; }
+  .move-menu .sep:hover { background: transparent; }
+  .docs-reader { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 24px 32px; overflow: auto; max-height: 80vh; }
+  .docs-reader .doc-meta { color: var(--muted); font-size: 11px; padding-bottom: 12px; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+  .docs-reader.markdown h1 { font-size: 22px; margin: 0 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  .docs-reader.markdown h2 { font-size: 18px; margin: 24px 0 10px; }
+  .docs-reader.markdown h3 { font-size: 15px; margin: 18px 0 8px; }
+  .docs-reader.markdown h4, .docs-reader.markdown h5, .docs-reader.markdown h6 { font-size: 14px; margin: 14px 0 6px; }
+  .docs-reader.markdown p { line-height: 1.6; margin: 8px 0; }
+  .docs-reader.markdown ul, .docs-reader.markdown ol { padding-left: 22px; line-height: 1.6; }
+  .docs-reader.markdown li { margin: 2px 0; }
+  .docs-reader.markdown code { background: var(--code-bg); padding: 2px 6px; border-radius: 3px; font-family: 'SF Mono', Consolas, monospace; font-size: 12px; color: var(--text); }
+  .docs-reader.markdown pre { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px; overflow-x: auto; }
+  .docs-reader.markdown pre code { background: transparent; padding: 0; font-size: 12px; }
+  .docs-reader.markdown blockquote { border-left: 3px solid var(--accent); margin: 12px 0; padding: 4px 12px; color: var(--muted); }
+  .docs-reader.markdown table { margin: 12px 0; }
+  .docs-reader.markdown a { color: var(--accent); }
+  .docs-reader.markdown hr { border: 0; border-top: 1px solid var(--border); margin: 20px 0; }
+  .docs-reader-empty { color: var(--muted); font-style: italic; padding: 40px; text-align: center; }
+
+  /* Chat */
+  .chat-viewer { display:grid; grid-template-columns: 240px 1fr; gap: 16px; min-height: 78vh; }
+  .chat-rail { background: var(--panel); border:1px solid var(--border); border-radius:8px; padding:10px; overflow:auto; max-height:80vh; display:flex; flex-direction:column; }
+  .chat-rail .new-chat { width:100%; padding:9px; background: var(--accent); color: var(--accent-fg); border:none; border-radius:5px; cursor:pointer; font-weight:600; font-size:13px; margin-bottom:10px; }
+  .chat-rail .new-chat:hover { opacity:0.9; }
+  .chat-rail .session {
+    padding:8px 10px; border-radius:5px; cursor:pointer; font-size:13px;
+    color: var(--text); margin-top:2px;
+    display:flex; justify-content:space-between; gap:6px; align-items:center;
+    border: 1px solid transparent;
+  }
+  .chat-rail .session:hover { background: var(--hover); }
+  .chat-rail .session:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+  .chat-rail .session.active { background: var(--hover-strong); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .chat-rail .session .title { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; }
+  .chat-rail .session .ren, .chat-rail .session .del {
+    opacity: 0; cursor: pointer; padding: 2px 6px; border-radius: 3px;
+    background: transparent; border: 1px solid transparent; color: var(--muted);
+    font-size: 12px; min-width: 24px; min-height: 22px; display:inline-flex; align-items:center; justify-content:center;
+  }
+  .chat-rail .session:hover .ren, .chat-rail .session:hover .del,
+  .chat-rail .session:focus-within .ren, .chat-rail .session:focus-within .del,
+  .chat-rail .session .ren:focus-visible, .chat-rail .session .del:focus-visible { opacity: 1; }
+  .chat-rail .session .ren:hover, .chat-rail .session .ren:focus-visible { color: var(--accent); border-color: var(--border); background: var(--bg); }
+  .chat-rail .session .del:hover, .chat-rail .session .del:focus-visible { color: var(--red); border-color: var(--red); background: var(--bg); }
+  .chat-rail .empty { color: var(--muted); font-size:12px; padding: 8px; font-style:italic; }
+  .chat-main { display:flex; flex-direction:column; background: var(--panel); border:1px solid var(--border); border-radius:8px; max-height:80vh; }
+  .chat-header { padding:12px 14px; border-bottom:1px solid var(--border); display:flex; flex-direction:column; gap:8px; }
+  .chat-header .row { display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
+  .chat-header .title { flex:1; font-size:14px; font-weight:600; min-width: 120px; }
+  .chat-header select { background: var(--bg); color: var(--text); border:1px solid var(--border); border-radius:5px; padding:6px 8px; font-size:12px; max-width:280px; }
+  .chat-header .icon-btn {
+    background: transparent; color: var(--muted); border: 1px solid var(--border);
+    border-radius: 50%; width: 28px; height: 28px; padding: 0; font-size: 13px;
+    cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  }
+  .chat-header .icon-btn:hover, .chat-header .icon-btn:focus-visible { color: var(--accent); border-color: var(--accent); background: var(--hover); }
+  .chat-header .model-tagline { font-size:12px; color: var(--muted); padding-left:2px; line-height:1.4; }
+  .preset-banner {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    margin-top: 4px; padding: 8px 12px;
+    background: var(--panel-2); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+    border-radius: 5px; font-size: 12px; color: var(--text);
+  }
+  .preset-banner > span:first-child { flex: 1; }
+  .preset-banner .banner-btn {
+    background: transparent; border: 1px solid var(--border); color: var(--text);
+    border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 11px;
+  }
+  .preset-banner .banner-btn:hover, .preset-banner .banner-btn:focus-visible { background: var(--bg); border-color: var(--accent); color: var(--accent); }
+  .chat-header .model-tagline strong { color: var(--text-strong); }
+  .model-modal, .sysprompt-modal, .rename-modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+    display: flex; align-items: center; justify-content: center; z-index: 60;
+  }
+  .model-modal .box, .sysprompt-modal .box, .rename-modal .box {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    max-width: 880px; width: 92%; max-height: 85vh; overflow: auto; padding: 24px;
+    box-shadow: var(--shadow);
+  }
+  .sysprompt-modal .box, .rename-modal .box { max-width: 640px; }
+  .model-modal h3, .sysprompt-modal h3, .rename-modal h3 { margin: 0 0 6px; color: var(--text-strong); }
+  .model-modal .mm-sub, .sysprompt-modal .sub { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+  .model-modal .mm-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(360px,1fr)); gap:14px; }
+  .model-modal .mm-card { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px; cursor: pointer; transition: border-color 0.1s; }
+  .model-modal .mm-card:hover, .model-modal .mm-card:focus-visible { border-color: var(--accent); outline: none; }
+  .model-modal .mm-card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .model-modal .mm-card .id { font-family:'SF Mono',Consolas,monospace; font-size:13px; color: var(--accent); font-weight:600; word-break:break-all; }
+  .model-modal .mm-card .tier { display:inline-block; padding:2px 7px; border-radius:3px; font-size:10px; text-transform:uppercase; letter-spacing:0.06em; margin-left:6px; font-weight: 600; }
+  .model-modal .mm-card .tier.flagship { background: var(--green-soft); color: var(--green); }
+  .model-modal .mm-card .tier.fast { background: rgba(88,166,255,0.18); color: var(--accent); }
+  .model-modal .mm-card .tier.small { background: var(--warn-soft); color: var(--warn); }
+  .model-modal .mm-card .tier.legacy, .model-modal .mm-card .tier.unknown { background: var(--code-bg); color: var(--muted); }
+  .model-modal .mm-card .price { font-size:12px; color: var(--muted); margin-top:4px; }
+  .model-modal .mm-card .one { font-size:13px; color: var(--text); margin-top:8px; line-height:1.5; }
+  .model-modal .mm-card h4 { margin:12px 0 4px; font-size:11px; color: var(--muted); text-transform:uppercase; letter-spacing:0.06em; font-weight:600; }
+  .model-modal .mm-card ul { margin:0; padding-left:18px; font-size:13px; line-height:1.55; color: var(--text); }
+  .model-modal .mm-card .reco { font-size:11px; color: var(--green); margin-top:6px; font-weight: 600; }
+  .model-modal .mm-close, .sysprompt-modal .close-btn, .rename-modal .close-btn {
+    float: right; background: transparent; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 5px; padding: 6px 12px;
+    cursor: pointer; font-size: 13px;
+  }
+  .model-modal .mm-close:hover, .sysprompt-modal .close-btn:hover, .rename-modal .close-btn:hover { color: var(--red); border-color: var(--red); }
+  .sysprompt-modal textarea, .rename-modal input { width: 100%; }
+  .sysprompt-modal textarea { min-height: 240px; font-family: 'SF Mono', Consolas, monospace; font-size: 13px; }
+  .sysprompt-modal .actions, .rename-modal .actions { margin-top: 14px; display: flex; gap: 10px; justify-content: flex-end; }
+  .chat-stream { flex:1; overflow:auto; padding:16px 22px; }
+  .chat-msg { margin: 16px 0; }
+  .chat-msg .role { font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color: var(--muted); margin-bottom:4px; font-weight: 600; }
+  .chat-msg.user .role { color: var(--accent); }
+  .chat-msg.assistant .role { color: var(--green); }
+  .chat-msg .body { line-height:1.6; font-size:14px; color: var(--text); }
+  .chat-msg .body pre { background: var(--bg); border: 1px solid var(--border); border-radius:6px; padding:12px; overflow-x:auto; }
+  .chat-msg .body code { background: var(--code-bg); padding: 2px 6px; border-radius: 3px; font-size: 12.5px; color: var(--text); }
+  .chat-msg .body pre code { background: transparent; padding: 0; }
+  .chat-msg .body blockquote { border-left:3px solid var(--accent); padding:2px 10px; color: var(--muted); margin: 8px 0; }
+  .chat-msg .ctx { font-size:11px; color: var(--muted); margin-top:6px; }
+  .chat-msg .ctx code { font-size:11px; }
+  .tool-pill {
+    display: inline-block; margin: 6px 0; padding: 4px 10px;
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    border-left: 3px solid var(--accent); border-radius: 4px;
+    font-size: 12px; font-family: 'SF Mono', Consolas, monospace;
+    max-width: 100%; word-break: break-all;
+  }
+  .tool-pill.err { border-left-color: var(--red); color: var(--red); }
+
+  /* Action Plan */
+  .ap-card {
+    background: var(--panel); border: 1px solid var(--border); border-left: 4px solid var(--border);
+    border-radius: 6px; padding: 12px 14px; margin-bottom: 10px;
+  }
+  .ap-card.pri-high { border-left-color: var(--red); }
+  .ap-card.pri-med  { border-left-color: var(--warn); }
+  .ap-card.pri-low  { border-left-color: var(--muted); }
+  .ap-card.st-done .ap-title { text-decoration: line-through; color: var(--muted); }
+  .ap-row1 { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .ap-row1 .ap-check { width: 18px; height: 18px; cursor: pointer; }
+  .ap-prio { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 3px; letter-spacing: 0.05em; }
+  .ap-prio.ap-high { background: var(--red-soft); color: var(--red); }
+  .ap-prio.ap-med  { background: var(--warn-soft); color: var(--warn); }
+  .ap-prio.ap-low  { background: var(--code-bg); color: var(--muted); }
+  .ap-status { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 4px 6px; font-size: 11px; }
+  .ap-title { flex: 1; font-size: 14px; min-width: 200px; }
+  .ap-desc { margin: 8px 0 4px 28px; font-size: 13px; color: var(--text); line-height: 1.55; white-space: pre-wrap; }
+  .ap-meta { margin: 8px 0 0 28px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 11px; color: var(--muted); }
+  .ap-pill { background: var(--bg); border: 1px solid var(--border); padding: 2px 8px; border-radius: 10px; }
+  .ap-ev { margin: 8px 0 0 28px; font-size: 11px; color: var(--muted); }
+  .ap-ev pre { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 8px; max-height: 220px; overflow: auto; font-size: 11px; }
+  .ap-card .icon-btn {
+    background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius: 4px;
+    width: 30px; height: 28px; padding: 0; cursor: pointer; font-size: 14px;
+  }
+  .ap-card .icon-btn:hover, .ap-card .icon-btn:focus-visible { color: var(--accent); border-color: var(--accent); }
+  .ap-card .icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  #apFilterPriority, #apFilterStatus { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 5px; padding: 6px 8px; font-size: 12px; }
+
+  /* Alignment */
+  .align-doc { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 14px; }
+  .align-doc-head { font-size: 13px; font-weight: 700; color: var(--text-strong); margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  .align-drift { background: var(--bg); border: 1px solid var(--border); border-left: 4px solid var(--border); border-radius: 5px; padding: 10px 12px; margin: 8px 0; }
+  .align-drift .align-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .align-drift .align-title { flex: 1; font-size: 13px; min-width: 200px; }
+  .align-verdict { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 3px; letter-spacing: 0.04em; }
+  .align-verdict.v-stale { background: rgba(88,166,255,0.18); color: var(--accent); }
+  .align-verdict.v-codefail { background: var(--red-soft); color: var(--red); }
+  .align-verdict.v-unver { background: var(--warn-soft); color: var(--warn); }
+  .align-desc { margin: 6px 0 6px 4px; font-size: 12.5px; color: var(--text); line-height: 1.5; }
+  .align-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .align-actions button { font-size: 12px; padding: 6px 12px; }
+  #alignScanBtn { font-size: 13px; }
+  .chat-input-row { border-top:1px solid var(--border); padding:12px; display:flex; gap:8px; align-items:flex-end; }
+  .chat-input-row textarea {
+    flex:1; background: var(--bg); color: var(--text); border:1px solid var(--border);
+    border-radius:5px; padding:10px 12px; font-size:14px; min-height: 48px; max-height:200px;
+    resize:vertical; font-family:inherit; line-height: 1.5;
+  }
+  .chat-input-row textarea:focus { outline: 2px solid var(--focus); outline-offset: 0; border-color: var(--accent); }
+  .chat-input-row button { padding: 10px 18px; background: var(--accent); color: var(--accent-fg); border:none; border-radius:5px; cursor:pointer; font-weight:600; font-size: 13px; }
+  .chat-input-row button:disabled { opacity:0.5; cursor:not-allowed; }
+  .chat-empty { color: var(--muted); padding: 60px 30px; text-align:center; line-height:1.6; }
+  .chat-empty code { background: var(--code-bg); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: var(--text); }
+  .chat-cursor { display:inline-block; width:8px; height:1em; background: var(--accent); animation: blink 1s steps(2) infinite; vertical-align:text-bottom; margin-left:2px; }
+  @keyframes blink { 50% { opacity:0; } }
+  .chat-mention-popup {
+    position: absolute; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 0; max-height: 220px; overflow: auto;
+    z-index: 50; box-shadow: var(--shadow); min-width: 260px;
+  }
+  .chat-mention-popup div { padding: 8px 14px; cursor: pointer; font-size: 13px; color: var(--text); }
+  .chat-mention-popup div:hover, .chat-mention-popup div.sel { background: var(--hover); color: var(--accent); }
+</style>
+</head>
+<body>
+<a href="#main" class="skip-link">Skip to main content</a>
+<aside aria-label="Primary navigation">
+  <h1>🪸 reef</h1>
+  <nav id="nav" aria-label="Sections">
+    <a href="#/overview" data-route="overview">Overview</a>
+    <a href="#/projects" data-route="projects">Projects</a>
+    <a href="#/decisions" data-route="decisions">Decisions</a>
+    <a href="#/spend" data-route="spend">AI Spend</a>
+    <a href="#/knowledge" data-route="knowledge">Knowledge</a>
+  </nav>
+  <div class="theme-row">
+    <button class="theme-toggle" id="themeToggleBtn" type="button"
+      aria-label="Toggle light/dark theme" title="Toggle light/dark theme">
+      <span id="themeIcon" aria-hidden="true">🌙</span>
+      <span id="themeLabel">Dark</span>
+    </button>
+  </div>
+</aside>
+<main id="main" tabindex="-1"></main>
+<script>
+  // Theme bootstrap — runs before route() so the right palette renders first.
+  (function () {
+    try {
+      const saved = localStorage.getItem('reef.theme');
+      if (saved === 'light' || saved === 'dark') {
+        document.documentElement.dataset.theme = saved;
+      }
+    } catch {}
+    function applyLabel() {
+      const t = document.documentElement.dataset.theme
+        || (window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+      const icon = document.getElementById('themeIcon');
+      const label = document.getElementById('themeLabel');
+      if (icon) icon.textContent = t === 'light' ? '☀️' : '🌙';
+      if (label) label.textContent = t === 'light' ? 'Light' : 'Dark';
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      applyLabel();
+      const btn = document.getElementById('themeToggleBtn');
+      if (btn) btn.addEventListener('click', () => {
+        const cur = document.documentElement.dataset.theme
+          || (window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        const next = cur === 'light' ? 'dark' : 'light';
+        document.documentElement.dataset.theme = next;
+        try { localStorage.setItem('reef.theme', next); } catch {}
+        applyLabel();
+      });
+    });
+  })();
+</script>
+
+<script>
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  return r.json();
+}
+
+function fmtNum(n) {
+  if (n < 1000) return String(n);
+  if (n < 1e6) return (n / 1000).toFixed(1) + 'k';
+  return (n / 1e6).toFixed(2) + 'M';
+}
+
+// ---- Chat tab (per-project conversation) ----
+const chatState = { sessions: [], activeId: null, models: [], sending: false, lastModel: null };
+
+async function initChatTab(group, projectData) {
+  const rail = document.getElementById('chatRail');
+  const stream = document.getElementById('chatStream');
+  const input = document.getElementById('chatInput');
+  const sendBtn = document.getElementById('chatSendBtn');
+  const modelSel = document.getElementById('chatModel');
+  const titleEl = document.getElementById('chatTitle');
+  if (!rail || !stream || !input || !sendBtn || !modelSel || !titleEl) return;
+
+  // Load models + sessions in parallel.
+  const [modelsResp, sessResp] = await Promise.all([
+    api('/api/llm/models').catch(() => ({ models: [] })),
+    api('/api/projects/' + encodeURIComponent(group) + '/chats').catch(() => ({ sessions: [] })),
+  ]);
+  chatState.models = modelsResp.models || [];
+  chatState.provider = modelsResp.provider || null;
+  chatState.recommended = modelsResp.recommended || null;
+  const defaultModel = modelsResp.chatDefault || modelsResp.defaultModel || (chatState.models[0] && chatState.models[0].id) || '';
+  chatState.lastModel = defaultModel;
+  chatState.sessions = sessResp.sessions || [];
+
+  function renderModels(selected) {
+    if (chatState.models.length === 0) {
+      modelSel.innerHTML = '<option value="">(no LLM configured)</option>';
+      modelSel.disabled = true;
+      updateTagline('');
+      return;
+    }
+    modelSel.disabled = false;
+    modelSel.innerHTML = chatState.models.map(m => {
+      const price = (m.inputUsdPerM != null && m.outputUsdPerM != null)
+        ? '  · $' + m.inputUsdPerM + '/$' + m.outputUsdPerM + ' per 1M'
+        : '';
+      const guide = m.guide || {};
+      const tip = (guide.oneLiner || '') + (guide.contextK ? '\n\nContext: ' + guide.contextK + 'K tokens' : '');
+      return '<option value="' + escAttr(m.id) + '"' + (m.id === selected ? ' selected' : '') +
+        ' title="' + escAttr(tip) + '">' + esc(m.id) + price + '</option>';
+    }).join('');
+    updateTagline(selected);
+  }
+
+  function updateTagline(modelId) {
+    const tag = document.getElementById('chatModelTagline');
+    if (!tag) return;
+    if (!modelId) { tag.textContent = 'Pick a chat from the left or start a new one.'; return; }
+    const m = chatState.models.find(x => x.id === modelId);
+    const guide = m && m.guide ? m.guide : null;
+    if (!guide) { tag.textContent = 'No description available for this model.'; return; }
+    const tier = guide.tier ? ' · <strong>' + esc(guide.tier) + '</strong>' : '';
+    const ctx = guide.contextK ? ' · ' + guide.contextK + 'K context' : '';
+    tag.innerHTML = esc(guide.oneLiner || '') + tier + ctx + '  <a href="#" id="chatModelTaglineMore" style="color:var(--accent);text-decoration:none;">[compare all]</a>';
+    const more = document.getElementById('chatModelTaglineMore');
+    if (more) more.addEventListener('click', (ev) => { ev.preventDefault(); showModelModal(); });
+  }
+
+  function showModelModal() {
+    document.querySelectorAll('.model-modal').forEach(m => m.remove());
+    const reco = (chatState.recommended && chatState.recommended.chat) || [];
+    const recoSet = new Set(reco);
+    const cards = chatState.models.map(m => {
+      const g = m.guide || {};
+      const price = (m.inputUsdPerM != null && m.outputUsdPerM != null)
+        ? '$' + m.inputUsdPerM + ' in / $' + m.outputUsdPerM + ' out per 1M'
+        : 'pricing unknown';
+      const ctx = g.contextK ? ' · ' + g.contextK + 'K context' : '';
+      const tier = g.tier ? '<span class="tier ' + esc(g.tier) + '">' + esc(g.tier) + '</span>' : '';
+      const recoBadge = recoSet.has(m.id) ? '<div class="reco">✓ Recommended for chat</div>' : '';
+      const isActive = m.id === modelSel.value;
+      const best = (g.bestFor || []).map(x => '<li>' + esc(x) + '</li>').join('');
+      const stren = (g.strengths || []).map(x => '<li>' + esc(x) + '</li>').join('');
+      const weak  = (g.weaknesses || []).map(x => '<li>' + esc(x) + '</li>').join('');
+      return '<div class="mm-card' + (isActive ? ' active' : '') + '" data-id="' + escAttr(m.id) + '">' +
+        '<div class="id">' + esc(m.id) + tier + '</div>' +
+        '<div class="price">' + esc(price) + esc(ctx) + '</div>' +
+        recoBadge +
+        '<div class="one">' + esc(g.oneLiner || '') + '</div>' +
+        (best ? '<h4>Best for</h4><ul>' + best + '</ul>' : '') +
+        (stren ? '<h4>Strengths</h4><ul>' + stren + '</ul>' : '') +
+        (weak ? '<h4>Watch out</h4><ul>' + weak + '</ul>' : '') +
+        '</div>';
+    }).join('');
+    const modal = document.createElement('div');
+    modal.className = 'model-modal';
+    modal.innerHTML = '<div class="box">' +
+      '<button class="mm-close">✕ Close</button>' +
+      '<h3>Models available on ' + esc(chatState.provider || 'your provider') + '</h3>' +
+      '<div class="mm-sub">Click a card to switch this chat to that model. Recommendations are tuned for project Q&amp;A and architectural review.</div>' +
+      '<div class="mm-grid">' + cards + '</div>' +
+      '</div>';
+    document.body.appendChild(modal);
+    const close = () => modal.remove();
+    modal.querySelector('.mm-close').addEventListener('click', close);
+    modal.addEventListener('click', (ev) => { if (ev.target === modal) close(); });
+    modal.querySelectorAll('.mm-card').forEach(card => {
+      card.addEventListener('click', () => {
+        modelSel.value = card.dataset.id;
+        modelSel.dispatchEvent(new Event('change'));
+        close();
+      });
+    });
+  }
+
+  function renderPresetBanner() {
+    const banner = document.getElementById('presetBanner');
+    if (!banner) return;
+    const s = chatState.sessions.find(x => x.id === chatState.activeId);
+    if (!s || !s.presetName) { banner.style.display = 'none'; banner.innerHTML = ''; return; }
+    const label = s.presetName === 'architect' ? '🏛 Architect Mode'
+      : s.presetName === 'audit' ? '🔍 Audit Mode'
+      : '⚙ Custom prompt';
+    const setAt = s.presetSetAt ? ' · set ' + fmtTime(s.presetSetAt) : '';
+    const stale = s.presetSetAt && (Date.now() - new Date(s.presetSetAt).getTime() > 24 * 3600 * 1000);
+    const warn = stale ? ' <span style="color:var(--warn);">(may be stale — refresh to pick up new tools/rules)</span>' : '';
+    banner.innerHTML =
+      '<span>' + label + setAt + warn + '</span>' +
+      (s.presetName !== 'custom' ? '<button type="button" class="banner-btn" data-act="refresh">↻ Refresh preset</button>' : '') +
+      '<button type="button" class="banner-btn" data-act="reset">✕ Drop</button>';
+    banner.style.display = 'flex';
+    banner.querySelector('[data-act="reset"]')?.addEventListener('click', async () => {
+      if (!confirm('Drop the pinned ' + (s.presetName || 'custom') + ' prompt and use the live default?')) return;
+      await api('/api/projects/' + encodeURIComponent(group) + '/chats/' + encodeURIComponent(chatState.activeId),
+        { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ systemPrompt: '', presetName: '' }) });
+      s.systemPrompt = undefined; s.presetName = undefined; s.presetSetAt = undefined;
+      renderPresetBanner();
+    });
+    banner.querySelector('[data-act="refresh"]')?.addEventListener('click', async () => {
+      const presetParam = s.presetName === 'audit' ? 'audit' : 'architect';
+      let preset = '';
+      try {
+        const r = await api('/api/projects/' + encodeURIComponent(group) + '/system-prompt/preset?preset=' + presetParam);
+        preset = (r && r.systemPrompt) || '';
+      } catch {}
+      if (!preset) { alert('Failed to refresh preset'); return; }
+      await api('/api/projects/' + encodeURIComponent(group) + '/chats/' + encodeURIComponent(chatState.activeId),
+        { method: 'PATCH', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ systemPrompt: preset, presetName: presetParam }) });
+      s.systemPrompt = preset; s.presetSetAt = new Date().toISOString();
+      renderPresetBanner();
+      alert('Preset refreshed. Latest tools and rules are now active in this chat.');
+    });
+  }
+
+  function renderRail() {
+    const sessHtml = chatState.sessions.length === 0
+      ? '<div class="empty">No chats yet. Click "+ New chat" to start.</div>'
+      : chatState.sessions.map(s => {
+          const active = s.id === chatState.activeId ? ' active' : '';
+          const ariaCurrent = active ? ' aria-current="true"' : '';
+          return '<div class="session' + active + '" role="button" tabindex="0"' + ariaCurrent +
+            ' data-id="' + escAttr(s.id) + '" aria-label="Open chat: ' + escAttr(s.title) + '">' +
+            '<span class="title" title="' + escAttr(s.title) + '">' + esc(s.title) + '</span>' +
+            '<button class="ren" type="button" data-id="' + escAttr(s.id) + '" aria-label="Rename chat" title="Rename">✎</button>' +
+            '<button class="del" type="button" data-id="' + escAttr(s.id) + '" aria-label="Delete chat" title="Delete">🗑</button>' +
+            '</div>';
+        }).join('');
+    rail.innerHTML = '<button class="new-chat" id="newChatBtn" type="button">+ New chat</button>' + sessHtml;
+    document.getElementById('newChatBtn').addEventListener('click', onNewChat);
+    rail.querySelectorAll('.session').forEach(el => {
+      const open = (ev) => {
+        if (ev.target.closest('.ren') || ev.target.closest('.del')) return;
+        loadSession(el.dataset.id);
+      };
+      el.addEventListener('click', open);
+      el.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          if (ev.target.closest('.ren') || ev.target.closest('.del')) return;
+          ev.preventDefault();
+          loadSession(el.dataset.id);
+        }
+      });
+    });
+    rail.querySelectorAll('.session .ren').forEach(el => {
+      el.addEventListener('click', async (ev) => {
+        ev.stopPropagation();
+        const cur = chatState.sessions.find(s => s.id === el.dataset.id);
+        const next = await openRenameModal(cur ? cur.title : '');
+        if (next == null) return;
+        const trimmed = next.trim();
+        if (!trimmed) return;
+        const r = await api('/api/projects/' + encodeURIComponent(group) + '/chats/' + encodeURIComponent(el.dataset.id),
+          { method: 'PATCH', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ title: trimmed }) });
+        if (r && r.title) {
+          const s = chatState.sessions.find(x => x.id === el.dataset.id);
+          if (s) s.title = r.title;
+          if (chatState.activeId === el.dataset.id) titleEl.textContent = r.title;
+          renderRail();
+        }
+      });
+    });
+    rail.querySelectorAll('.session .del').forEach(el => {
+      el.addEventListener('click', async (ev) => {
+        ev.stopPropagation();
+        if (!confirm('Delete this chat? This cannot be undone.')) return;
+        await api('/api/projects/' + encodeURIComponent(group) + '/chats/' + encodeURIComponent(el.dataset.id),
+          { method: 'DELETE' });
+        chatState.sessions = chatState.sessions.filter(s => s.id !== el.dataset.id);
+        if (chatState.activeId === el.dataset.id) {
+          chatState.activeId = null;
+          renderEmpty();
+        }
+        renderRail();
+      });
+    });
+  }
+
+  function openRenameModal(initial) {
+    return new Promise((resolve) => {
+      document.querySelectorAll('.rename-modal').forEach(m => m.remove());
+      const modal = document.createElement('div');
+      modal.className = 'rename-modal';
+      modal.setAttribute('role', 'dialog');
+      modal.setAttribute('aria-modal', 'true');
+      modal.setAttribute('aria-label', 'Rename chat');
+      modal.innerHTML =
+        '<div class="box">' +
+          '<button class="close-btn" type="button" aria-label="Close">✕</button>' +
+          '<h3>Rename chat</h3>' +
+          '<label for="renameInput" class="visually-hidden">New title</label>' +
+          '<input id="renameInput" type="text" maxlength="200" />' +
+          '<div class="actions">' +
+            '<button class="secondary" type="button" data-act="cancel">Cancel</button>' +
+            '<button type="button" data-act="save">Save</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(modal);
+      const inp = modal.querySelector('#renameInput');
+      inp.value = initial || '';
+      setTimeout(() => { inp.focus(); inp.select(); }, 0);
+      const close = (val) => { modal.remove(); resolve(val); };
+      modal.querySelector('.close-btn').addEventListener('click', () => close(null));
+      modal.querySelector('[data-act="cancel"]').addEventListener('click', () => close(null));
+      modal.querySelector('[data-act="save"]').addEventListener('click', () => close(inp.value));
+      modal.addEventListener('click', (ev) => { if (ev.target === modal) close(null); });
+      inp.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') { ev.preventDefault(); close(inp.value); }
+        if (ev.key === 'Escape') { ev.preventDefault(); close(null); }
+      });
+    });
+  }
+
+  async function openSysPromptModal() {
+    if (!chatState.activeId) { alert('Open or create a chat first.'); return; }
+    document.querySelectorAll('.sysprompt-modal').forEach(m => m.remove());
+    const session = chatState.sessions.find(s => s.id === chatState.activeId);
+    const savedOverride = (session && session.systemPrompt) || '';
+
+    // Fetch the current default so we can prefill it (or show what override would replace).
+    let defaultPrompt = '';
+    try {
+      const r = await api('/api/projects/' + encodeURIComponent(group) + '/system-prompt');
+      defaultPrompt = (r && r.systemPrompt) || '';
+    } catch {}
+
+    const modal = document.createElement('div');
+    modal.className = 'sysprompt-modal';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Edit system prompt');
+    modal.innerHTML =
+      '<div class="box">' +
+        '<button class="close-btn" type="button" aria-label="Close">✕ Close</button>' +
+        '<h3>System prompt for this chat</h3>' +
+        '<div class="sub">This is the EXACT prompt the model will receive. Edit anything you want — your text replaces the default in full (nothing extra is appended). ' +
+          '<strong>Reset to default</strong> reverts this chat to the live built-in prompt (which auto-updates as docs/decisions change).</div>' +
+        '<label for="sysPromptText" class="visually-hidden">System prompt</label>' +
+        '<textarea id="sysPromptText"></textarea>' +
+        '<div class="actions">' +
+          '<button class="secondary" type="button" data-act="load-default">Load default</button>' +
+          '<button class="secondary" type="button" data-act="reset">Reset to default</button>' +
+          '<button class="secondary" type="button" data-act="cancel">Cancel</button>' +
+          '<button type="button" data-act="save">Save</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(modal);
+    const ta = modal.querySelector('#sysPromptText');
+    // Prefill: saved override if any, else the live default.
+    ta.value = savedOverride || defaultPrompt;
+    setTimeout(() => ta.focus(), 0);
+    const close = () => modal.remove();
+    modal.querySelector('.close-btn').addEventListener('click', close);
+    modal.querySelector('[data-act="cancel"]').addEventListener('click', close);
+    modal.addEventListener('click', (ev) => { if (ev.target === modal) close(); });
+    modal.querySelector('[data-act="load-default"]').addEventListener('click', () => {
+      ta.value = defaultPrompt;
+      ta.focus();
+    });
+    modal.querySelector('[data-act="reset"]').addEventListener('click', async () => {
+      await api('/api/projects/' + encodeURIComponent(group) + '/chats/' + encodeURIComponent(chatState.activeId),
+        { method: 'PATCH', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ systemPrompt: '', presetName: '' }) });
+      const s = chatState.sessions.find(x => x.id === chatState.activeId);
+      if (s) { s.systemPrompt = undefined; s.presetName = undefined; s.presetSetAt = undefined; }
+      renderPresetBanner();
+      close();
+    });
+    modal.querySelector('[data-act="save"]').addEventListener('click', async () => {
+      const val = ta.value;
+      const r = await api('/api/projects/' + encodeURIComponent(group) + '/chats/' + encodeURIComponent(chatState.activeId),
+        { method: 'PATCH', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ systemPrompt: val, presetName: val.trim() ? 'custom' : '' }) });
+      const s = chatState.sessions.find(x => x.id === chatState.activeId);
+      if (s) {
+        s.systemPrompt = (r && r.systemPrompt) || (val.trim() ? val : undefined);
+        s.presetName = val.trim() ? 'custom' : undefined;
+        s.presetSetAt = val.trim() ? new Date().toISOString() : undefined;
+      }
+      renderPresetBanner();
+      close();
+    });
+    ta.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape') { ev.preventDefault(); close(); }
+    });
+  }
+
+  function renderEmpty() {
+    titleEl.textContent = 'No chat selected';
+    stream.innerHTML = '<div class="chat-empty">' +
+      '<div style="font-size:48px;margin-bottom:10px;">💬</div>' +
+      '<div>Ask anything about <strong>' + esc(projectData.displayName || group) + '</strong>.</div>' +
+      '<div style="margin-top:14px;">This chat sees only this project\'s docs and decisions.</div>' +
+      '<div style="margin-top:14px;font-size:12px;">Tip: type <code>@</code> to reference a specific doc by name.</div>' +
+      '</div>';
+    input.disabled = true; sendBtn.disabled = true;
+    renderModels(chatState.lastModel);
+  }
+
+  async function onNewChat() {
+    const model = modelSel.value || chatState.lastModel || '';
+    const r = await api('/api/projects/' + encodeURIComponent(group) + '/chats',
+      { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model }) });
+    if (!r || !r.id) { alert('Failed to create chat'); return; }
+    chatState.sessions.unshift({ id: r.id, group: r.group, title: r.title, model: r.model, createdAt: r.createdAt, updatedAt: r.updatedAt });
+    chatState.activeId = r.id;
+    renderRail();
+    await loadSession(r.id);
+    input.focus();
+  }
+
+  async function loadSession(id) {
+    chatState.activeId = id;
+    renderRail();
+    const s = await api('/api/projects/' + encodeURIComponent(group) + '/chats/' + encodeURIComponent(id));
+    if (!s || s.error) { renderEmpty(); return; }
+    titleEl.textContent = s.title;
+    renderModels(s.model);
+    // Sync preset metadata back to in-memory session list so the banner is accurate.
+    const cached = chatState.sessions.find(x => x.id === id);
+    if (cached) {
+      cached.systemPrompt = s.systemPrompt;
+      cached.presetName = s.presetName;
+      cached.presetSetAt = s.presetSetAt;
+    }
+    renderPresetBanner();
+    stream.innerHTML = (s.messages || []).filter(m => m.role !== 'system').map(renderMsg).join('') ||
+      '<div class="chat-empty"><div>Start the conversation — ask about this project.</div></div>';
+    stream.scrollTop = stream.scrollHeight;
+    input.disabled = false; sendBtn.disabled = false;
+  }
+
+  function renderMsg(m) {
+    const body = m.role === 'assistant' && window.marked ? window.marked.parse(m.content || '') : ('<pre style="white-space:pre-wrap;margin:0;background:transparent;border:0;padding:0;font-family:inherit;">' + esc(m.content || '') + '</pre>');
+    const ctx = (m.contextDocs && m.contextDocs.length)
+      ? '<div class="ctx">📎 attached: ' + m.contextDocs.map(p => '<code>' + esc(p.split(/[/\\\\]/).pop()) + '</code>').join(' ') + '</div>'
+      : '';
+    return '<div class="chat-msg ' + esc(m.role) + '"><div class="role">' + esc(m.role) + '</div><div class="body">' + body + '</div>' + ctx + '</div>';
+  }
+
+  async function sendMessage() {
+    if (chatState.sending || !chatState.activeId) return;
+    const text = input.value.trim();
+    if (!text) return;
+    chatState.sending = true;
+    sendBtn.disabled = true; input.disabled = true;
+
+    // Optimistic user bubble.
+    const userHtml = renderMsg({ role: 'user', content: text });
+    if (stream.querySelector('.chat-empty')) stream.innerHTML = '';
+    stream.insertAdjacentHTML('beforeend', userHtml);
+    input.value = '';
+    autoresize();
+
+    // Assistant bubble (streamed).
+    const asstId = 'asst-' + Math.random().toString(36).slice(2, 8);
+    stream.insertAdjacentHTML('beforeend',
+      '<div class="chat-msg assistant" id="' + asstId + '"><div class="role">assistant</div><div class="body"><span class="chat-cursor"></span></div></div>');
+    stream.scrollTop = stream.scrollHeight;
+    const bodyEl = document.querySelector('#' + asstId + ' .body');
+
+    const model = modelSel.value || undefined;
+    const openDocPath = (function () {
+      // If user is on Docs tab too, the open doc isn't tracked here — leave null.
+      const active = document.querySelector('#docsTree .file.active');
+      return active ? active.dataset.docAbs : null;
+    })();
+
+    let streamed = '';
+    try {
+      const r = await fetch('/api/projects/' + encodeURIComponent(group) + '/chats/' + encodeURIComponent(chatState.activeId) + '/stream', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ message: text, model, openDocPath }),
+      });
+      if (!r.ok || !r.body) throw new Error('stream failed: ' + r.status);
+      const reader = r.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buf = '';
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let idx;
+        while ((idx = buf.indexOf('\n\n')) !== -1) {
+          const frame = buf.slice(0, idx); buf = buf.slice(idx + 2);
+          let event = 'message', data = '';
+          for (const line of frame.split('\n')) {
+            if (line.startsWith('event:')) event = line.slice(6).trim();
+            else if (line.startsWith('data:')) data += line.slice(5).trim();
+          }
+          if (!data) continue;
+          let obj; try { obj = JSON.parse(data); } catch { continue; }
+          if (event === 'delta' && obj.text) {
+            streamed += obj.text;
+            bodyEl.innerHTML = (window.marked ? window.marked.parse(streamed) : esc(streamed)) + '<span class="chat-cursor"></span>';
+            stream.scrollTop = stream.scrollHeight;
+          } else if (event === 'error') {
+            bodyEl.innerHTML = '<div style="color:var(--red);">Error: ' + esc(obj.error || 'unknown') + '</div>';
+          } else if (event === 'done') {
+            bodyEl.innerHTML = window.marked ? window.marked.parse(streamed) : esc(streamed);
+            const cost = obj.costUsd != null ? ' · $' + obj.costUsd.toFixed(4) : '';
+            const tokens = (obj.inputTokens != null && obj.outputTokens != null) ? '  · ' + obj.inputTokens + ' in / ' + obj.outputTokens + ' out' : '';
+            bodyEl.insertAdjacentHTML('afterend', '<div class="ctx">' + esc(obj.model || '') + tokens + cost + '</div>');
+          } else if (event === 'tool') {
+            // Render a pill showing what the model just executed.
+            const okCls = obj.ok === false ? 'tool-pill err' : 'tool-pill';
+            const summary = obj.summary || (obj.name + ' · done');
+            bodyEl.insertAdjacentHTML('beforebegin',
+              '<div class="' + okCls + '" title="' + escAttr(JSON.stringify(obj.args || {})) + '">' +
+                esc(summary) +
+              '</div>');
+            stream.scrollTop = stream.scrollHeight;
+          } else if (event === 'start' && obj.contextDocs && obj.contextDocs.length) {
+            bodyEl.insertAdjacentHTML('beforebegin', '<div class="ctx">📎 ' + obj.contextDocs.map(p => '<code>' + esc(p.split(/[/\\\\]/).pop()) + '</code>').join(' ') + '</div>');
+          }
+        }
+      }
+    } catch (e) {
+      bodyEl.innerHTML = '<div style="color:var(--red);">Error: ' + esc(e.message || String(e)) + '</div>';
+    }
+    chatState.sending = false;
+    sendBtn.disabled = false; input.disabled = false;
+    input.focus();
+
+    // Reload the session list so the title (auto-derived from first user msg) updates.
+    const list = await api('/api/projects/' + encodeURIComponent(group) + '/chats');
+    chatState.sessions = list.sessions || [];
+    renderRail();
+  }
+
+  function autoresize() {
+    input.style.height = 'auto';
+    input.style.height = Math.min(160, input.scrollHeight) + 'px';
+  }
+
+  input.addEventListener('input', () => { autoresize(); maybeShowMentionPopup(); });
+  input.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter' && !ev.shiftKey) {
+      const popup = document.querySelector('.chat-mention-popup');
+      if (popup) { ev.preventDefault(); selectMention(); return; }
+      ev.preventDefault();
+      sendMessage();
+    }
+    if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+      const popup = document.querySelector('.chat-mention-popup');
+      if (popup) { ev.preventDefault(); navMention(ev.key === 'ArrowDown' ? 1 : -1); }
+    }
+    if (ev.key === 'Escape') {
+      const popup = document.querySelector('.chat-mention-popup');
+      if (popup) popup.remove();
+    }
+  });
+  sendBtn.addEventListener('click', sendMessage);
+  modelSel.addEventListener('change', async () => {
+    chatState.lastModel = modelSel.value;
+    updateTagline(modelSel.value);
+    if (chatState.activeId) {
+      await api('/api/projects/' + encodeURIComponent(group) + '/chats/' + encodeURIComponent(chatState.activeId),
+        { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model: modelSel.value }) });
+    }
+  });
+  const infoBtn = document.getElementById('chatModelInfo');
+  if (infoBtn) infoBtn.addEventListener('click', showModelModal);
+  const sysBtn = document.getElementById('chatSysPromptBtn');
+  if (sysBtn) sysBtn.addEventListener('click', openSysPromptModal);
+  const archBtn = document.getElementById('chatArchitectBtn');
+  if (archBtn) archBtn.addEventListener('click', async () => {
+    if (!chatState.activeId) { alert('Open or create a chat first.'); return; }
+    if (!confirm('Switch this chat to Architect Mode? It replaces the system prompt with a senior-architect-reviewer preset.')) return;
+    let preset = '';
+    try {
+      const r = await api('/api/projects/' + encodeURIComponent(group) + '/system-prompt/preset?preset=architect');
+      preset = (r && r.systemPrompt) || '';
+    } catch {}
+    if (!preset) { alert('Failed to load preset'); return; }
+    await api('/api/projects/' + encodeURIComponent(group) + '/chats/' + encodeURIComponent(chatState.activeId),
+      { method: 'PATCH', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ systemPrompt: preset, presetName: 'architect' }) });
+    const s = chatState.sessions.find(x => x.id === chatState.activeId);
+    if (s) { s.systemPrompt = preset; s.presetName = 'architect'; s.presetSetAt = new Date().toISOString(); }
+    renderPresetBanner();
+    alert('Architect Mode active for this chat.');
+  });
+
+  // ---- @mention popup over the textarea ----
+  function getMentionContext() {
+    const v = input.value.slice(0, input.selectionStart);
+    const m = v.match(/(?:^|\s)@([A-Za-z0-9_./\\-]*)$/);
+    return m ? { prefix: m[1].toLowerCase(), start: input.selectionStart - m[1].length } : null;
+  }
+  function maybeShowMentionPopup() {
+    const ctx = getMentionContext();
+    let popup = document.querySelector('.chat-mention-popup');
+    if (!ctx) { if (popup) popup.remove(); return; }
+    const docs = (projectData.docs || []).map(d => ({
+      stem: (d.relPath.split(/[/\\\\]/).pop() || '').replace(/\.md$/i, ''),
+      synopsis: d.synopsis || '',
+    })).filter(o => o.stem.toLowerCase().includes(ctx.prefix)).slice(0, 8);
+    if (docs.length === 0) { if (popup) popup.remove(); return; }
+    if (!popup) {
+      popup = document.createElement('div');
+      popup.className = 'chat-mention-popup';
+      document.body.appendChild(popup);
+    }
+    popup.innerHTML = docs.map((o, i) =>
+      '<div data-stem="' + escAttr(o.stem) + '"' + (i === 0 ? ' class="sel"' : '') + '>' +
+      '<strong>' + esc(o.stem) + '</strong>' +
+      (o.synopsis ? '<div style="font-size:10px;color:var(--muted);margin-top:2px;">' + esc(o.synopsis) + '</div>' : '') +
+      '</div>'
+    ).join('');
+    const r = input.getBoundingClientRect();
+    popup.style.left = r.left + 'px';
+    popup.style.top = (r.top - popup.offsetHeight - 4) + 'px';
+    popup.querySelectorAll('div').forEach(el => el.addEventListener('click', () => {
+      input.value = input.value.slice(0, ctx.start) + el.dataset.stem + ' ' + input.value.slice(input.selectionStart);
+      popup.remove(); input.focus();
+    }));
+  }
+  function navMention(dir) {
+    const popup = document.querySelector('.chat-mention-popup');
+    if (!popup) return;
+    const items = [...popup.querySelectorAll('div')];
+    const i = items.findIndex(x => x.classList.contains('sel'));
+    if (i === -1) return;
+    items[i].classList.remove('sel');
+    const next = (i + dir + items.length) % items.length;
+    items[next].classList.add('sel');
+  }
+  function selectMention() {
+    const popup = document.querySelector('.chat-mention-popup');
+    if (!popup) return;
+    const sel = popup.querySelector('.sel');
+    if (sel) sel.click();
+  }
+
+  // Render initial state.
+  renderRail();
+  if (chatState.sessions.length > 0) {
+    await loadSession(chatState.sessions[0].id);
+  } else {
+    renderEmpty();
+  }
+}
+
+function esc(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function escAttr(s) { return esc(s).replace(/'/g, '&#39;'); }
+
+// ---- Alignment tab ----
+async function initAlignmentTab(group) {
+  const listEl = document.getElementById('alignList');
+  const scanBtn = document.getElementById('alignScanBtn');
+  const lastRunEl = document.getElementById('alignLastRun');
+  if (!listEl || !scanBtn || !lastRunEl) return;
+  let cache = { summary: null, tasks: [] };
+
+  async function refresh() {
+    const r = await api('/api/projects/' + encodeURIComponent(group) + '/alignment').catch(() => ({ summary: null, tasks: [] }));
+    cache = { summary: r.summary || null, tasks: r.tasks || [] };
+    render();
+  }
+
+  function render() {
+    if (cache.summary) {
+      const s = cache.summary;
+      lastRunEl.textContent = 'last scan ' + fmtTime(s.scannedAt) + ' · ' + s.docsScanned + ' docs · ' + (s.drifts?.total || 0) + ' drifts (' + (s.drifts?.high || 0) + ' high / ' + (s.drifts?.med || 0) + ' med / ' + (s.drifts?.low || 0) + ' low)';
+    } else {
+      lastRunEl.textContent = 'not scanned yet';
+    }
+    // Group drifts by docRef. Tasks created from alignment scan have source like 'alignment-scan:...'.
+    const drifts = cache.tasks.filter(t => t.status !== 'done' && (t.source || '').startsWith('alignment-scan'));
+    if (drifts.length === 0) {
+      if (cache.summary && (cache.summary.drifts?.total || 0) === 0) {
+        listEl.innerHTML = '<p class="muted" style="padding:24px;text-align:center;">✨ Aligned. No drifts found in last scan.</p>';
+      } else {
+        listEl.innerHTML = '<p class="muted">No drifts to show. Click <strong>Run full alignment scan</strong> above to scan all docs against the code.</p>';
+      }
+      return;
+    }
+    // Group by docRef.
+    const byDoc = new Map();
+    for (const d of drifts) {
+      const k = d.docRef || '(unknown doc)';
+      if (!byDoc.has(k)) byDoc.set(k, []);
+      byDoc.get(k).push(d);
+    }
+    const sevOrder = { high: 0, med: 1, low: 2 };
+    const sections = [...byDoc.entries()].map(([doc, items]) => {
+      items.sort((a, b) => (sevOrder[a.priority] ?? 9) - (sevOrder[b.priority] ?? 9));
+      return '<div class="align-doc">' +
+        '<div class="align-doc-head">📄 ' + esc(doc) + ' <span class="muted">· ' + items.length + ' drift' + (items.length === 1 ? '' : 's') + '</span></div>' +
+        items.map(renderDrift).join('') +
+        '</div>';
+    }).join('');
+    listEl.innerHTML = sections;
+    listEl.querySelectorAll('[data-task-id]').forEach(card => wireDrift(card));
+  }
+
+  function verdictBadge(source) {
+    const v = (source || '').replace('alignment-scan:', '');
+    if (v === 'doc-stale') return '<span class="align-verdict v-stale">📜 doc stale</span>';
+    if (v === 'code-fails-doc') return '<span class="align-verdict v-codefail">❌ code fails doc</span>';
+    if (v === 'unverifiable') return '<span class="align-verdict v-unver">⚠️ unverifiable</span>';
+    return '';
+  }
+
+  function renderDrift(t) {
+    const sev = '<span class="ap-prio ap-' + esc(t.priority) + '">' + esc(t.priority.toUpperCase()) + '</span>';
+    return '<div class="align-drift" data-task-id="' + escAttr(t.id) + '">' +
+      '<div class="align-row">' + sev + verdictBadge(t.source) +
+        '<span class="align-title">' + esc(t.title) + '</span>' +
+      '</div>' +
+      (t.description ? '<div class="align-desc">' + esc(t.description) + '</div>' : '') +
+      (t.evidence ? '<details class="ap-ev"><summary>Evidence</summary><pre>' + esc(t.evidence) + '</pre></details>' : '') +
+      '<div class="align-actions">' +
+        '<button type="button" data-act="apply">📝 Auto-apply doc patch</button>' +
+        '<button type="button" class="secondary" data-act="discuss">💬 Discuss in chat</button>' +
+        '<button type="button" class="secondary" data-act="dismiss">✕ Dismiss</button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function wireDrift(card) {
+    const id = card.dataset.taskId;
+    const url = '/api/projects/' + encodeURIComponent(group) + '/tasks/' + encodeURIComponent(id);
+    card.querySelector('[data-act="apply"]').addEventListener('click', async (ev) => {
+      const btn = ev.currentTarget;
+      btn.disabled = true; btn.textContent = '⏳ Applying…';
+      try {
+        const r = await api(url + '/apply-patch', { method: 'POST' });
+        if (r && r.ok) {
+          btn.textContent = '✓ Applied · backup ' + (r.backup || '').split(/[/\\]/).pop();
+          btn.disabled = true;
+          setTimeout(refresh, 800);
+        } else {
+          btn.textContent = '⚠ Failed';
+          alert('Apply failed: ' + (r && r.error ? r.error : 'unknown'));
+          btn.disabled = false;
+        }
+      } catch (e) {
+        btn.textContent = '⚠ Failed';
+        alert('Apply failed: ' + (e && e.message ? e.message : e));
+        btn.disabled = false;
+      }
+    });
+    card.querySelector('[data-act="dismiss"]').addEventListener('click', async () => {
+      if (!confirm('Dismiss this drift? It will be marked done.')) return;
+      await api(url, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ status: 'done' }) });
+      refresh();
+    });
+    card.querySelector('[data-act="discuss"]').addEventListener('click', () => {
+      // Switch to chat tab. (User can manually paste the drift into a chat.)
+      document.querySelector('.tab[data-tab="chat"]')?.click();
+    });
+  }
+
+  const exportBtn = document.getElementById('alignExportBtn');
+  if (exportBtn) exportBtn.addEventListener('click', async () => {
+    exportBtn.disabled = true; exportBtn.textContent = '⏳';
+    try {
+      const r = await fetch('/api/projects/' + encodeURIComponent(group) + '/alignment/export');
+      const md = await r.text();
+      try {
+        await navigator.clipboard.writeText(md);
+        exportBtn.textContent = '✓ Copied — paste into Claude Code';
+        setTimeout(() => { exportBtn.textContent = '📤 Export for review'; }, 2500);
+      } catch {
+        // Fallback: open in a new tab so user can copy manually.
+        const blob = new Blob([md], { type: 'text/markdown' });
+        const u = URL.createObjectURL(blob);
+        window.open(u, '_blank');
+        exportBtn.textContent = '📤 Export for review';
+      }
+    } catch (e) {
+      alert('Export failed: ' + (e && e.message ? e.message : e));
+      exportBtn.textContent = '📤 Export for review';
+    } finally {
+      exportBtn.disabled = false;
+    }
+  });
+
+  scanBtn.addEventListener('click', async () => {
+    scanBtn.disabled = true;
+    scanBtn.textContent = '⏳ Scanning all docs… (30–90s, no live progress yet)';
+    listEl.innerHTML = '<p class="muted" style="padding:24px;text-align:center;">Scanning… please wait. The LLM is reading every doc and grounding each finding against the code.</p>';
+    try {
+      const resp = await fetch('/api/projects/' + encodeURIComponent(group) + '/alignment/scan', { method: 'POST' });
+      const r = await resp.json();
+      if (!resp.ok) {
+        listEl.innerHTML = '<p style="color:var(--red);">Scan failed: ' + esc(r.error || ('HTTP ' + resp.status)) + '</p>';
+        return;
+      }
+      cache = { summary: r.summary || null, tasks: r.tasks || [] };
+      render();
+      // Surface scan errors prominently if any.
+      const errs = (r.summary && r.summary.errors) || [];
+      if (errs.length > 0) {
+        const div = document.createElement('div');
+        div.className = 'panel';
+        div.style.cssText = 'margin-bottom:12px;border-left:3px solid var(--warn);';
+        div.innerHTML = '<strong style="font-size:13px;color:var(--warn);">⚠ Scan completed with ' + errs.length + ' error(s):</strong>' +
+          '<ul style="font-size:12px;margin:6px 0 0 0;color:var(--muted);">' +
+          errs.map(e => '<li><code>' + esc(e) + '</code></li>').join('') + '</ul>';
+        listEl.parentNode.insertBefore(div, listEl);
+      }
+    } catch (e) {
+      console.error('alignment scan failed', e);
+      listEl.innerHTML = '<p style="color:var(--red);">Scan failed: ' + esc((e && e.message) || String(e)) + '</p>';
+    } finally {
+      scanBtn.disabled = false;
+      scanBtn.textContent = '🔍 Run full alignment scan';
+    }
+  });
+
+  await refresh();
+}
+
+// ---- Action Plan tab ----
+async function initActionPlanTab(group) {
+  const listEl = document.getElementById('apList');
+  const fp = document.getElementById('apFilterPriority');
+  const fs = document.getElementById('apFilterStatus');
+  if (!listEl || !fp || !fs) return;
+  let tasks = [];
+
+  async function refresh() {
+    const r = await api('/api/projects/' + encodeURIComponent(group) + '/tasks').catch(() => ({ tasks: [] }));
+    tasks = r.tasks || [];
+    render();
+  }
+
+  function render() {
+    const fpv = fp.value, fsv = fs.value;
+    let items = tasks.slice();
+    if (fpv) items = items.filter(t => t.priority === fpv);
+    if (fsv === 'open') items = items.filter(t => t.status !== 'done');
+    else if (fsv) items = items.filter(t => t.status === fsv);
+    // Stable sort: status (todo first), then priority (high first), then newest first
+    const stOrder = { todo: 0, in_progress: 1, done: 2 };
+    const prOrder = { high: 0, med: 1, low: 2 };
+    items.sort((a, b) =>
+      (stOrder[a.status] ?? 9) - (stOrder[b.status] ?? 9) ||
+      (prOrder[a.priority] ?? 9) - (prOrder[b.priority] ?? 9) ||
+      (b.createdAt || '').localeCompare(a.createdAt || '')
+    );
+    if (items.length === 0) {
+      listEl.innerHTML = '<p class="muted">No tasks. Ask reef-chat to review a doc — it will propose tasks here.</p>';
+      return;
+    }
+    listEl.innerHTML = items.map(renderTask).join('');
+    listEl.querySelectorAll('[data-task-id]').forEach(card => wireCard(card));
+  }
+
+  function renderTask(t) {
+    const checked = t.status === 'done' ? 'checked' : '';
+    const cls = 'ap-card pri-' + t.priority + ' st-' + t.status;
+    const desc = t.description ? '<div class="ap-desc">' + esc(t.description) + '</div>' : '';
+    const ev = t.evidence ? '<details class="ap-ev"><summary>Evidence</summary><pre>' + esc(t.evidence) + '</pre></details>' : '';
+    const docPill = t.docRef ? '<span class="ap-pill">📄 ' + esc(t.docRef) + '</span>' : '';
+    const srcPill = t.source ? '<span class="ap-pill">' + esc(t.source) + '</span>' : '';
+    return '<div class="' + cls + '" data-task-id="' + escAttr(t.id) + '">' +
+      '<div class="ap-row1">' +
+        '<input type="checkbox" class="ap-check" ' + checked + ' aria-label="Mark done" />' +
+        '<span class="ap-prio ap-' + esc(t.priority) + '">' + esc(t.priority.toUpperCase()) + '</span>' +
+        '<select class="ap-status" aria-label="Status">' +
+          ['todo','in_progress','done'].map(s => '<option value="' + s + '"' + (t.status === s ? ' selected' : '') + '>' + s.replace('_',' ') + '</option>').join('') +
+        '</select>' +
+        '<span class="ap-title">' + esc(t.title) + '</span>' +
+        '<button class="ap-patch icon-btn" type="button" title="Ask Grok to propose a doc patch for this task"' + (t.docRef ? '' : ' disabled') + '>📝</button>' +
+        '<button class="ap-del icon-btn" type="button" title="Delete task" aria-label="Delete">🗑</button>' +
+      '</div>' +
+      desc +
+      '<div class="ap-meta">' + docPill + srcPill + '<span class="ap-date">' + (t.completedAt ? 'done ' + esc(t.completedAt.slice(0,10)) : 'created ' + esc((t.createdAt||'').slice(0,10))) + '</span></div>' +
+      ev +
+    '</div>';
+  }
+
+  function wireCard(card) {
+    const id = card.dataset.taskId;
+    const url = '/api/projects/' + encodeURIComponent(group) + '/tasks/' + encodeURIComponent(id);
+    card.querySelector('.ap-check').addEventListener('change', async (ev) => {
+      const status = ev.target.checked ? 'done' : 'todo';
+      await api(url, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ status }) });
+      refresh();
+    });
+    card.querySelector('.ap-status').addEventListener('change', async (ev) => {
+      await api(url, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ status: ev.target.value }) });
+      refresh();
+    });
+    card.querySelector('.ap-del').addEventListener('click', async () => {
+      if (!confirm('Delete this task?')) return;
+      await api(url, { method: 'DELETE' });
+      refresh();
+    });
+    const patchBtn = card.querySelector('.ap-patch');
+    if (patchBtn && !patchBtn.disabled) patchBtn.addEventListener('click', async () => {
+      patchBtn.disabled = true; patchBtn.textContent = '⏳';
+      try {
+        const r = await api(url + '/propose-patch', { method: 'POST' });
+        if (r && r.diff) showDiffModal(r);
+        else alert('Failed to propose patch: ' + (r && r.error ? r.error : 'unknown'));
+      } finally { patchBtn.disabled = false; patchBtn.textContent = '📝'; }
+    });
+  }
+
+  fp.addEventListener('change', render);
+  fs.addEventListener('change', render);
+  await refresh();
+}
+
+function showDiffModal(r) {
+  document.querySelectorAll('.diff-modal').forEach(m => m.remove());
+  const m = document.createElement('div');
+  m.className = 'diff-modal sysprompt-modal';
+  m.setAttribute('role','dialog'); m.setAttribute('aria-modal','true'); m.setAttribute('aria-label','Proposed doc patch');
+  m.innerHTML =
+    '<div class="box">' +
+      '<button class="close-btn" type="button">✕ Close</button>' +
+      '<h3>Proposed patch · ' + esc(r.doc) + '</h3>' +
+      '<div class="sub">Generated by ' + esc(r.model || '') + ' · review the diff and apply it manually for now (apply-via-API coming).</div>' +
+      '<pre style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px;max-height:60vh;overflow:auto;font-size:12px;">' + esc(r.diff || '') + '</pre>' +
+      '<div class="actions">' +
+        '<button type="button" data-act="copy">📋 Copy diff</button>' +
+        '<button class="secondary" type="button" data-act="close">Close</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(m);
+  const close = () => m.remove();
+  m.querySelector('.close-btn').addEventListener('click', close);
+  m.querySelector('[data-act="close"]').addEventListener('click', close);
+  m.addEventListener('click', (e) => { if (e.target === m) close(); });
+  m.querySelector('[data-act="copy"]').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(r.diff || ''); alert('Copied'); } catch { alert('Copy failed'); }
+  });
+}
+
+function fmtTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso), now = Date.now();
+  const diff = now - d.getTime();
+  if (diff < 60000) return 'just now';
+  if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+  if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+  if (diff < 604800000) return Math.floor(diff / 86400000) + 'd ago';
+  return d.toISOString().slice(0, 10);
+}
+
+function el(html) {
+  const d = document.createElement('div');
+  d.innerHTML = html.trim();
+  return d.firstElementChild;
+}
+
+const charts = {};
+function destroyCharts() {
+  for (const k of Object.keys(charts)) { charts[k]?.destroy(); delete charts[k]; }
+}
+
+// ---------------- Overview ----------------
+function sparklineSvg(values, max) {
+  const w = 120, h = 28;
+  if (values.length === 0 || max === 0) return `<svg width="${w}" height="${h}"></svg>`;
+  const step = w / (values.length - 1 || 1);
+  const pts = values.map((v, i) => `${(i * step).toFixed(1)},${(h - (v / max) * h).toFixed(1)}`).join(' ');
+  return `<svg width="${w}" height="${h}" style="display:block;">
+    <polyline fill="none" stroke="#58a6ff" stroke-width="1.5" points="${pts}" />
+  </svg>`;
+}
+
+async function renderOverview() {
+  destroyCharts();
+  const main = $('#main');
+  main.innerHTML = `
+    <h2>Overview</h2>
+    <div class="muted">Last 30 days</div>
+    <div id="aiLine" style="margin: 16px 0 0;"></div>
+    <div class="totals" id="totals"></div>
+    <div class="grid">
+      <div class="panel"><h3>Activity (last 90 days)</h3><div class="heatmap" id="heatmap"></div></div>
+      <div class="panel"><h3>Where time went</h3><canvas id="donut"></canvas></div>
+      <div class="panel"><h3>Project momentum (last 14 days)</h3><div id="momentum"></div></div>
+      <div class="panel"><h3>Open threads</h3><div id="openThreads"></div></div>
+    </div>
+    <div class="panel" style="margin-top: 20px;">
+      <h3>Recent sessions</h3>
+      <table><thead><tr><th>When</th><th>Project</th><th style="width:50%;">What happened</th><th>Turns</th></tr></thead>
+      <tbody id="recent"></tbody></table>
+      <div id="summaryHint" style="margin-top:12px;"></div>
+    </div>
+  `;
+  const d = await api('/api/overview?days=30');
+  if (d.aiLine) {
+    $('#aiLine').innerHTML = `<div class="panel" style="border-left: 3px solid #a371f7;">
+      <div class="muted" style="font-size:11px; text-transform: uppercase; letter-spacing: 0.5px;">AI weekly read</div>
+      <div style="margin-top:6px;">${d.aiLine.replace(/</g, '&lt;')}</div>
+    </div>`;
+  }
+  $('#totals').innerHTML = `
+    <div class="stat"><div class="v">${d.totals.sessions}</div><div class="l">sessions</div></div>
+    <div class="stat"><div class="v">${fmtNum(d.totals.turns)}</div><div class="l">turns</div></div>
+    <div class="stat"><div class="v">${fmtNum(d.totals.toolCalls)}</div><div class="l">tool calls</div></div>
+    <div class="stat"><div class="v">${fmtNum(d.totals.tokens)}</div><div class="l">tokens</div></div>
+  `;
+  // heatmap
+  const days = Object.entries(d.heatmap).sort();
+  const maxC = Math.max(1, ...days.map(([, c]) => c));
+  $('#heatmap').innerHTML = days.map(([day, c]) => {
+    const lvl = c === 0 ? 0 : c / maxC > 0.66 ? 4 : c / maxC > 0.33 ? 3 : c > 1 ? 2 : 1;
+    return `<div class="day l${lvl}" title="${day}: ${c}"></div>`;
+  }).join('');
+  // donut
+  charts.donut = new Chart($('#donut'), {
+    type: 'doughnut',
+    data: {
+      labels: d.groups.map(g => g.displayName),
+      datasets: [{ data: d.groups.map(g => g.sessions),
+        backgroundColor: ['#58a6ff','#2ea043','#d29922','#f85149','#a371f7','#bc8cff','#ff6b6b','#888'] }]
+    },
+    options: { plugins: { legend: { position: 'right', labels: { color: getComputedStyle(document.documentElement).getPropertyValue('--text') } } } }
+  });
+  // momentum
+  const mMax = Math.max(1, ...d.momentum.flatMap(m => m.sparkline));
+  $('#momentum').innerHTML = d.momentum.length === 0
+    ? '<div class="muted">No activity in this window.</div>'
+    : d.momentum.map(m => `
+      <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);cursor:pointer;" onclick="location.hash='#/projects/${encodeURIComponent(m.key)}'">
+        <div style="flex:1;font-size:13px;">${m.displayName}</div>
+        <div>${sparklineSvg(m.sparkline, mMax)}</div>
+        <div class="muted" style="font-size:12px;width:50px;text-align:right;">${m.total} sess</div>
+      </div>`).join('');
+  // open threads
+  $('#openThreads').innerHTML = d.openThreads.length === 0
+    ? '<div class="muted">No open threads.</div>'
+    : d.openThreads.slice(0, 6).map(t => `
+      <div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04);cursor:pointer;" onclick="location.hash='#/projects/${encodeURIComponent(t.key)}'">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;">
+          <strong style="font-size:13px;">${t.displayName}</strong>
+          <span class="muted" style="font-size:11px;">${fmtTime(t.lastActive)}</span>
+        </div>
+        <div style="margin-top:4px;font-size:12px;">
+          ${(t.docsCount||0) > 0 ? `📂 ${t.docsCount} docs` : '<span style="color:#d29922;">⚠ no docs</span>'}
+          ${t.lastDecision ? `· last decision: ${t.lastDecision.body.slice(0,80).replace(/</g,'&lt;')}${t.lastDecision.body.length > 80 ? '…' : ''}` : '<span class="muted"> · no decisions yet</span>'}
+        </div>
+      </div>`).join('');
+  // recent
+  $('#recent').innerHTML = d.recent.map(s => `
+    <tr style="cursor:pointer;" onclick="location.hash='#/projects/${encodeURIComponent(s.group)}'">
+      <td>${fmtTime(s.ended_at)}</td>
+      <td>${s.displayName}</td>
+      <td style="font-size:13px;">${s.summary ? s.summary.replace(/</g, '&lt;') : `<span class="muted">${s.turn_count} turns · ${s.tool_call_count} tools · ${s.primary_model ?? 'unknown'}</span>`}</td>
+      <td>${s.turn_count}</td>
+    </tr>
+  `).join('');
+  if (!d.nimEnabled) {
+    $('#summaryHint').innerHTML = '<div class="muted" style="font-size:12px;">💡 Set <code>NIM_API_KEY</code> and run <code>reef summarize</code> to see one-line summaries instead of turn counts.</div>';
+  } else {
+    const summarized = d.recent.filter(s => s.summary).length;
+    if (summarized < d.recent.length) {
+      $('#summaryHint').innerHTML = `<div class="muted" style="font-size:12px;">${summarized}/${d.recent.length} sessions summarized — run <code>reef summarize</code> to fill the rest.</div>`;
+    }
+  }
+}
+
+// ---------------- Projects list ----------------
+async function renderProjectsList() {
+  destroyCharts();
+  const main = $('#main');
+  main.innerHTML = `<h2>Projects</h2><div class="muted">Grouped by company. Click a project for its docs and activity.</div><div id="companies"></div>`;
+  const d = await api('/api/projects');
+  $('#companies').innerHTML = d.companies.map(c => `
+    <section style="margin-top: 28px;">
+      <h3 style="font-size: 16px; margin: 0 0 12px; color: ${c.company === '(personal)' ? '#8b949e' : '#c9d1d9'};">
+        🏢 ${c.company}
+        <span class="muted" style="font-size: 12px; font-weight: 400; margin-left: 8px;">${c.groups.length} project${c.groups.length === 1 ? '' : 's'} · ${c.sessions} sessions · last active ${fmtTime(c.lastActive)}</span>
+      </h3>
+      <div class="pgrid">
+        ${c.groups.map(g => `
+          <div class="project-card" data-key="${g.key}">
+            <h4>${g.displayName}</h4>
+            <div class="muted" style="font-size:12px;margin-bottom:8px;">
+              ${g.sessions} sessions · last active ${fmtTime(g.lastActive)}
+            </div>
+            <div style="font-size:12px;">
+              <span class="badge ${g.trust}">${g.trust}</span>
+              ${(g.docsCount||0) > 0 ? `· 📂 ${g.docsCount} docs` : '<span class="muted"> · no docs</span>'}
+              ${(g.decisionsCount||0) > 0 ? `· 📋 ${g.decisionsCount} decisions` : ''}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </section>
+  `).join('');
+  $$('.project-card').forEach(c => c.addEventListener('click', () => {
+    location.hash = '#/projects/' + encodeURIComponent(c.dataset.key);
+  }));
+}
+
+// ---------------- Project detail ----------------
+async function renderProject(key) {
+  destroyCharts();
+  const main = $('#main');
+  const d = await api('/api/projects/' + encodeURIComponent(key));
+  if (d.error) { main.innerHTML = `<h2>Error</h2><p>${d.error}</p>`; return; }
+  main.innerHTML = `
+    <a href="#/projects" class="muted" style="text-decoration:none;">← Projects</a>
+    <h2 style="margin-top:8px;">${d.displayName}${d.company ? ` <span class="muted" style="font-size:16px;">· ${d.company}</span>` : ''}</h2>
+    <div style="margin: 8px 0 20px; display:flex; gap: 12px; align-items:center;">
+      <span>Trust:</span>
+      <select id="trustSel">
+        <option value="read-write" ${d.trust === 'read-write' ? 'selected' : ''}>read-write</option>
+        <option value="read-only" ${d.trust === 'read-only' ? 'selected' : ''}>read-only</option>
+        <option value="deny" ${d.trust === 'deny' ? 'selected' : ''}>deny</option>
+      </select>
+      <span class="muted">${d.activity.sessions.length} sessions (last 30d)</span>
+    </div>
+    <div class="tabs">
+      <div class="tab active" data-tab="docs">📂 Docs (${(d.docs||[]).length})</div>
+      <div class="tab" data-tab="chat">💬 Chat</div>
+      <div class="tab" data-tab="alignment">🧭 Alignment</div>
+      <div class="tab" data-tab="actionplan">📌 Action Plan</div>
+      <div class="tab" data-tab="decisions">📋 Decisions (${(d.decisions||[]).length})</div>
+      <div class="tab" data-tab="inbox">📥 Inbox (${(d.pendingDecisions||[]).length + (d.pendingPatches||[]).length})</div>
+      <div class="tab" data-tab="drifts">⚠️ Drifts${d.driftReport ? ' (' + (d.driftReport.totals?.violations ?? 0) + ')' : ''}</div>
+      <div class="tab" data-tab="activity">📊 Activity</div>
+      <div class="tab" data-tab="sessions">🗂 Sessions</div>
+      ${d.companyContext !== null ? '<div class="tab" data-tab="company">🏢 Company</div>' : ''}
+    </div>
+    <div id="tab-content"></div>
+  `;
+  const writable = d.trust === 'read-write';
+  $('#trustSel').addEventListener('change', async (e) => {
+    await api('/api/projects/' + encodeURIComponent(key) + '/trust',
+      { method: 'PUT', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ trust: e.target.value }) });
+    renderProject(key);
+  });
+  const docs = d.docs || [];
+  const decisions = d.decisions || [];
+  let expandedDoc = null;
+  const tabs = {
+    docs: () => {
+      if (docs.length === 0) return '<p class="muted">No docs found. Drop PRD, TDD, spec, design, or requirements .md files in the project repo — reef picks them up automatically.</p>';
+      const esc = s => String(s ?? '').replace(/</g,'&lt;');
+      const layout = d.docLayout || { groups: [], unsorted: docs };
+      const renderDoc = (it) => {
+        const fname = it.title || it.relPath.split(/[/\\]/).pop();
+        return `
+        <div class="file" draggable="true" tabindex="0" role="treeitem"
+             aria-label="${esc(fname)}${it.synopsis ? ': ' + esc(it.synopsis) : ''}"
+             title="Click to open · Right-click or ⋮ to group / ungroup"
+             data-doc-abs="${esc(it.absolutePath)}">
+          <div class="frow">
+            <span class="fname">${esc(fname)}</span>
+            <button type="button" class="fmove" tabindex="-1"
+              aria-label="Group / ungroup ${esc(fname)}" title="Group / ungroup">⋮</button>
+          </div>
+          ${it.synopsis ? `<div class="fsynopsis">${esc(it.synopsis)}</div>` : ''}
+        </div>`;
+      };
+      const renderGroup = (g) => `
+        <div class="group" role="group" aria-label="${esc(g.name)} (${g.docs.length} docs)" data-group-id="${esc(g.id)}">
+          <div class="group-head" draggable="true" tabindex="0" role="button"
+               aria-expanded="${g.collapsed ? 'false' : 'true'}"
+               aria-label="Group: ${esc(g.name)} — ${g.docs.length} docs">
+            <span class="gname" data-group-id="${esc(g.id)}">${esc(g.name)}</span>
+            <span class="gcount" aria-hidden="true">${g.docs.length}</span>
+            <button type="button" class="gdel" tabindex="-1"
+              aria-label="Delete group ${esc(g.name)}" title="Delete group (docs go back to Unsorted)">✕</button>
+          </div>
+          ${g.collapsed ? '' : `<div class="group-body${g.docs.length === 0 ? ' empty' : ''}" role="group" data-group-id="${esc(g.id)}">
+            ${g.docs.map(renderDoc).join('')}
+          </div>`}
+        </div>`;
+      const groupsHtml = layout.groups.map(renderGroup).join('');
+      const unsortedHtml = (layout.unsorted && layout.unsorted.length > 0) ? `
+        <div class="group unsorted" role="group" aria-label="Unsorted (${layout.unsorted.length} docs)" data-group-id="__unsorted__">
+          <div class="group-head" style="cursor:default;">
+            <span class="gname" style="color:var(--muted);">Unsorted</span>
+            <span class="gcount" aria-hidden="true">${layout.unsorted.length}</span>
+          </div>
+          <div class="group-body" role="group" data-group-id="__unsorted__">
+            ${layout.unsorted.map(renderDoc).join('')}
+          </div>
+        </div>` : '';
+      return `
+        <div class="docs-viewer">
+          <div class="docs-tree" id="docsTree" role="tree" aria-label="Project documentation">
+            ${groupsHtml}
+            ${unsortedHtml}
+            <button class="add-group" id="addGroupBtn" type="button" aria-label="Add a new group">+ Add group</button>
+          </div>
+          <div class="docs-reader markdown" id="docsReader" role="region" aria-label="Document content" tabindex="0">
+            <div class="docs-reader-empty">
+              <div>Pick a doc on the left to view it rendered.</div>
+              <div style="margin-top:10px;font-size:12px;color:var(--muted);">
+                Tip: <strong>click</strong> a doc to open it · <strong>⋮</strong> or <strong>right-click</strong> to group / ungroup.
+              </div>
+            </div>
+          </div>
+        </div>`;
+    },
+    chat: () => `
+      <div class="chat-viewer">
+        <div class="chat-rail" id="chatRail">
+          <button class="new-chat" id="newChatBtn">+ New chat</button>
+          <div class="empty">Loading sessions…</div>
+        </div>
+        <div class="chat-main">
+          <div class="chat-header">
+            <div class="row">
+              <span class="title" id="chatTitle">No chat selected</span>
+              <label for="chatModel" class="visually-hidden">Model</label>
+              <select id="chatModel" title="Model"><option>Loading…</option></select>
+              <button class="icon-btn" id="chatModelInfo" type="button"
+                aria-label="Compare all models" title="Compare all models">ⓘ</button>
+              <button class="icon-btn" id="chatSysPromptBtn" type="button"
+                aria-label="Edit system prompt for this chat" title="Edit system prompt for this chat">⚙</button>
+              <button class="icon-btn" id="chatArchitectBtn" type="button"
+                aria-label="Load Architect Mode preset"
+                title="Architect Mode: load a senior-architect-reviewer preset prompt for this chat">🏛</button>
+            </div>
+            <div class="model-tagline" id="chatModelTagline">Pick a chat from the left or start a new one.</div>
+            <div class="preset-banner" id="presetBanner" style="display:none;"></div>
+          </div>
+          <div class="chat-stream" id="chatStream">
+            <div class="chat-empty">
+              <div style="font-size:48px;margin-bottom:10px;">💬</div>
+              <div>Ask anything about <strong>${(d.displayName || key).replace(/</g,'&lt;')}</strong>.</div>
+              <div style="margin-top:14px;">This chat sees only this project's docs and decisions.</div>
+              <div style="margin-top:14px;font-size:12px;">Tip: type <code>@</code> to reference a specific doc by name.</div>
+            </div>
+          </div>
+          <div class="chat-input-row">
+            <textarea id="chatInput" placeholder="Ask anything about this project…  (Shift+Enter for newline)" disabled></textarea>
+            <button id="chatSendBtn" disabled>Send</button>
+          </div>
+        </div>
+      </div>`,
+    alignment: () => `
+      <div class="panel" style="margin-bottom:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <strong style="font-size:14px;">🧭 Alignment</strong>
+        <span class="muted" style="font-size:12px;">Drifts between docs and code, ranked by severity. Resolve them and watch the count drop.</span>
+        <span style="flex:1;"></span>
+        <span id="alignLastRun" class="muted" style="font-size:11px;"></span>
+        <button id="alignScanBtn" type="button">🔍 Run full alignment scan</button>
+        <button id="alignExportBtn" type="button" class="secondary" title="Copy a markdown report to clipboard for second-opinion review (paste into Claude Code)">📤 Export for review</button>
+      </div>
+      <div id="alignList"><p class="muted">Loading…</p></div>
+    `,
+    actionplan: () => `
+      <div class="panel" style="margin-bottom:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <strong style="font-size:14px;">Action Plan</strong>
+        <span class="muted" style="font-size:12px;">Findings, gaps, and improvements proposed by reef-chat or you. Mark them done as you ship them.</span>
+        <span style="flex:1;"></span>
+        <select id="apFilterPriority" aria-label="Filter by priority">
+          <option value="">All priorities</option>
+          <option value="high">High only</option>
+          <option value="med">Med only</option>
+          <option value="low">Low only</option>
+        </select>
+        <select id="apFilterStatus" aria-label="Filter by status">
+          <option value="">All statuses</option>
+          <option value="open">Open (todo + in-progress)</option>
+          <option value="todo">Todo</option>
+          <option value="in_progress">In progress</option>
+          <option value="done">Done</option>
+        </select>
+      </div>
+      <div id="apList"><p class="muted">Loading…</p></div>
+    `,
+    decisions: () => `
+      <div class="panel" style="margin-bottom:16px;">
+        <p class="muted" style="margin:0 0 8px;">Decisions are logged automatically by Claude during sessions via <code>reef_log_decision</code>.</p>
+        ${writable ? `<details style="margin-top:8px;">
+          <summary style="cursor:pointer;color:var(--accent);font-size:13px;">+ Add manually</summary>
+          <input id="decTitle" placeholder="Title (e.g. Switch booking storage to JSONL)" style="margin-top:8px;width:100%;box-sizing:border-box;padding:6px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;" />
+          <textarea id="decWhy" placeholder="Why — the motivation or trigger" style="margin-top:6px;"></textarea>
+          <textarea id="decImpact" placeholder="Impact — what changes" style="margin-top:6px;"></textarea>
+          <input id="decRefs" placeholder="Refs (comma-separated: file paths, commits, doc sections)" style="margin-top:6px;width:100%;box-sizing:border-box;padding:6px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;" />
+          <div style="margin-top:8px;"><button id="addDec">Log decision</button></div>
+        </details>` : ''}
+      </div>
+      ${decisions.length === 0 ? '<p class="muted">No decisions logged yet.</p>' : ''}
+      ${[...decisions].reverse().map(e => {
+        const esc = (s) => String(s ?? '').replace(/</g,'&lt;');
+        const head = e.title ? `<strong style="font-size:14px;">${esc(e.title)}</strong>` : '';
+        const why = e.why ? `<div style="margin-top:6px;font-size:13px;"><span class="muted">Why:</span> ${esc(e.why)}</div>` : '';
+        const impact = e.impact ? `<div style="margin-top:4px;font-size:13px;"><span class="muted">Impact:</span> ${esc(e.impact)}</div>` : '';
+        const refs = (e.refs && e.refs.length) ? `<div style="margin-top:4px;font-size:12px;"><span class="muted">Refs:</span> ${e.refs.map(r => `<code style="font-size:11px;">${esc(r)}</code>`).join(' · ')}</div>` : '';
+        const fallback = (!e.title && !e.why && !e.impact) ? `<div class="body" style="margin-top:4px;">${esc(e.body)}</div>` : '';
+        return `
+        <div class="card">
+          <div class="date" style="display:flex;justify-content:space-between;">
+            <span>${e.date || '—'}</span>
+            ${e.source === 'md' ? '<span class="muted" style="font-size:10px;">legacy</span>' : ''}
+          </div>
+          ${head}
+          ${why}
+          ${impact}
+          ${refs}
+          ${fallback}
+        </div>`;
+      }).join('')}`,
+    inbox: () => {
+      const esc = s => String(s ?? '').replace(/</g,'&lt;');
+      const pendDecs = d.pendingDecisions || [];
+      const pendPatches = d.pendingPatches || [];
+      const decsHtml = pendDecs.length === 0
+        ? '<p class="muted">No pending decision suggestions.</p>'
+        : pendDecs.map(p => `
+          <div class="card" data-pend-id="${esc(p.id)}">
+            <div class="date">suggested ${fmtTime(p.suggestedAt)} · session <code style="font-size:11px;">${esc((p.sessionId||'').slice(0,8))}</code></div>
+            <strong style="font-size:14px;">${esc(p.title)}</strong>
+            <div style="margin-top:6px;font-size:13px;"><span class="muted">Why:</span> ${esc(p.why)}</div>
+            ${p.impact ? `<div style="margin-top:4px;font-size:13px;"><span class="muted">Impact:</span> ${esc(p.impact)}</div>` : ''}
+            ${(p.refs||[]).length ? `<div style="margin-top:4px;font-size:12px;"><span class="muted">Refs:</span> ${p.refs.map(r => `<code style="font-size:11px;">${esc(r)}</code>`).join(' · ')}</div>` : ''}
+            <div style="margin-top:10px;display:flex;gap:8px;">
+              <button class="acceptDec" data-id="${esc(p.id)}">✓ Accept &amp; log</button>
+              <button class="rejectDec" data-id="${esc(p.id)}" class="secondary">✗ Reject</button>
+            </div>
+          </div>`).join('');
+      const patchesHtml = pendPatches.length === 0
+        ? '<p class="muted">No pending doc patches.</p>'
+        : pendPatches.map(p => `
+          <div class="card" data-patch-id="${esc(p.id)}">
+            <div class="date">proposed ${fmtTime(p.proposedAt)} · for decision: <em>${esc(p.decisionTitle)}</em></div>
+            <div style="margin-top:4px;font-size:12px;"><code>${esc(p.docRelPath)}</code> §${esc(p.section)}</div>
+            <div style="margin-top:6px;font-size:13px;"><span class="muted">Why:</span> ${esc(p.rationale)}</div>
+            <div style="margin-top:8px;">
+              <div class="muted" style="font-size:11px;">— before</div>
+              <pre style="background:var(--bg);border:1px solid var(--border);border-left:3px solid var(--red);padding:8px;font-size:11px;white-space:pre-wrap;">${esc(p.beforeText)}</pre>
+              <div class="muted" style="font-size:11px;">+ after</div>
+              <pre style="background:var(--bg);border:1px solid var(--border);border-left:3px solid var(--green);padding:8px;font-size:11px;white-space:pre-wrap;">${esc(p.afterText)}</pre>
+            </div>
+            <div style="margin-top:10px;display:flex;gap:8px;">
+              <button class="applyPatch" data-id="${esc(p.id)}">✓ Apply patch</button>
+              <button class="rejectPatch" data-id="${esc(p.id)}" class="secondary">✗ Reject</button>
+            </div>
+          </div>`).join('');
+      return `
+        <div class="panel" style="margin-bottom:16px;">
+          <p class="muted" style="margin:0;">LLM-proposed actions waiting for your approval. Nothing applies until you click ✓.</p>
+        </div>
+        <h3 style="margin-top:0;">Decision suggestions (${pendDecs.length})</h3>
+        ${decsHtml}
+        <h3 style="margin-top:24px;">Doc patches (${pendPatches.length})</h3>
+        ${patchesHtml}
+      `;
+    },
+    drifts: () => {
+      const r = d.driftReport;
+      const esc = s => String(s ?? '').replace(/</g,'&lt;');
+      const header = `
+        <div class="panel" style="margin-bottom:16px;">
+          <p class="muted" style="margin:0 0 8px;">
+            Drift checks compare structured claims in your TDD/PRD against the codebase.
+            Embed a claim like:<br/>
+            <code style="font-size:11px;">&lt;!-- @reef-claim<br/>description: ThyrocareService is the only caller of Thyrocare APIs<br/>pattern: thyrocare\\.(com|in)<br/>scope: src/modules/thyrocare/<br/>--&gt;</code>
+          </p>
+          <button id="runDrift">${r ? 'Re-run drift check' : 'Run drift check now'}</button>
+          ${r ? `<span class="muted" style="margin-left:12px;">last run ${fmtTime(r.checkedAt)} · ${r.totals.ok} ok · ${r.totals.violations} violations · ${r.totals.errors} errors</span>` : ''}
+        </div>
+      `;
+      if (!r || !r.results || r.results.length === 0) {
+        return header + '<p class="muted">No claims found in scanned docs yet. Add a <code>@reef-claim</code> block to a TDD/PRD doc and run a check.</p>';
+      }
+      const cards = r.results.map(res => {
+        const c = res.claim;
+        const icon = res.status === 'ok' ? '🟢' : res.status === 'violation' ? '🔴' : '⚠️';
+        const violations = (res.violations || []).slice(0, 25).map(v =>
+          `<div style="font-size:12px;margin-top:4px;"><code>${esc(v.file)}:${v.line}</code> — ${esc(v.text)}</div>`
+        ).join('');
+        const more = (res.violations?.length ?? 0) > 25 ? `<div class="muted" style="font-size:11px;margin-top:4px;">… and ${res.violations.length - 25} more</div>` : '';
+        return `
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;">
+              <strong>${icon} ${esc(c.description)}</strong>
+              <span class="muted" style="font-size:11px;">${esc(c.docPath)}${c.section ? ' · ' + esc(c.section) : ''}</span>
+            </div>
+            <div class="muted" style="font-size:11px;margin-top:4px;">
+              pattern: <code>${esc(c.pattern)}</code>
+              ${c.scope ? ' · scope: <code>' + esc(c.scope) + '</code>' : ''}
+              ${c.forbidden ? ' · <span style="color:var(--red);">forbidden</span>' : ''}
+            </div>
+            ${res.errorMessage ? `<div style="color:var(--red);margin-top:6px;font-size:12px;">error: ${esc(res.errorMessage)}</div>` : ''}
+            ${violations}
+            ${more}
+          </div>`;
+      }).join('');
+      return header + cards;
+    },
+    activity: () => `
+      <div class="grid">
+        <div class="panel"><h3>Heatmap (90d)</h3><div class="heatmap" id="phm"></div></div>
+        <div class="panel"><h3>Top tools</h3><canvas id="ptools"></canvas></div>
+        <div class="panel"><h3>Models</h3><canvas id="pmodels"></canvas></div>
+      </div>`,
+    sessions: () => `
+      <div class="panel">
+        <table>
+          <thead><tr><th>When</th><th>Project</th><th>Turns</th><th>Tools</th><th>Model</th><th>Tokens</th></tr></thead>
+          <tbody>${d.activity.sessions.map(s => `
+            <tr>
+              <td>${fmtTime(s.endedAt)}</td>
+              <td>${s.project}</td>
+              <td>${s.turns}</td>
+              <td>${s.tools}</td>
+              <td><code style="font-size:11px;">${s.model ?? '—'}</code></td>
+              <td>${fmtNum(s.tokens)}</td>
+            </tr>`).join('')}</tbody>
+        </table>
+      </div>`,
+    company: () => `<div class="panel"><pre>${(d.companyContext ?? '').replace(/</g, '&lt;')}</pre></div>`,
+  };
+  function showTab(name) {
+    $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    $('#tab-content').innerHTML = tabs[name]();
+    if (name === 'docs') {
+      const reader = $('#docsReader');
+      const loadDoc = async (absPath, fileEl) => {
+        $$('#docsTree .file').forEach(f => f.classList.remove('active'));
+        if (fileEl) fileEl.classList.add('active');
+        if (!reader) return;
+        reader.innerHTML = '<div class="docs-reader-empty">Loading…</div>';
+        try {
+          const r = await api('/api/projects/' + encodeURIComponent(key) + '/doc?path=' + encodeURIComponent(absPath));
+          const html = window.marked ? window.marked.parse(r.content || '') : ('<pre>' + (r.content||'').replace(/</g,'&lt;') + '</pre>');
+          reader.innerHTML = `
+            <div class="doc-meta">${(r.relPath||'').replace(/</g,'&lt;')} · ${(r.projectFolder||'').replace(/</g,'&lt;')}</div>
+            ${html}
+          `;
+          reader.scrollTop = 0;
+        } catch (e) {
+          reader.innerHTML = '<div class="docs-reader-empty">Failed to load doc.</div>';
+        }
+      };
+
+      // ---- Layout state (mirror of server) ----
+      const layout = d.docLayout || { groups: [], unsorted: docs };
+      // Build a mutable in-memory model of {groups: [{id,name,docs:[abs]}]}.
+      let model = {
+        groups: layout.groups.map(g => ({
+          id: g.id, name: g.name, collapsed: g.collapsed === true,
+          docs: g.docs.map(x => x.absolutePath),
+        })),
+      };
+      const newId = () => 'g-' + Math.random().toString(36).slice(2, 8);
+      const persist = async () => {
+        try {
+          const r = await api('/api/projects/' + encodeURIComponent(key) + '/doc-layout',
+            { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ layout: model }) });
+          // Re-render with server's pruned layout.
+          if (r && r.docLayout) {
+            d.docLayout = r.docLayout;
+            renderProject(key);
+          }
+        } catch (e) { alert('Save failed: ' + (e && e.message ? e.message : e)); }
+      };
+
+      // ---- File card: click opens doc; ⋮ button or right-click opens group menu ----
+      $$('#docsTree .file').forEach(f => {
+        f.addEventListener('click', (ev) => {
+          if (ev.target.closest('.fmove')) {
+            ev.stopPropagation();
+            showMoveMenu(f, f.dataset.docAbs);
+            return;
+          }
+          loadDoc(f.dataset.docAbs, f);
+        });
+        f.addEventListener('contextmenu', (ev) => {
+          ev.preventDefault();
+          showMoveMenu(f, f.dataset.docAbs);
+        });
+        f.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter' || ev.key === ' ') {
+            if (ev.target.closest('.fmove')) return;
+            ev.preventDefault();
+            loadDoc(f.dataset.docAbs, f);
+          } else if (ev.key === 'm' || ev.key === 'M') {
+            ev.preventDefault();
+            showMoveMenu(f, f.dataset.docAbs);
+          } else if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+            ev.preventDefault();
+            const items = $$('#docsTree .file, #docsTree .group-head');
+            const i = items.indexOf(f);
+            const next = items[Math.max(0, Math.min(items.length - 1, i + (ev.key === 'ArrowDown' ? 1 : -1)))];
+            if (next) next.focus();
+          }
+        });
+      });
+      const first = $('#docsTree .file');
+      if (first) loadDoc(first.dataset.docAbs, first);
+
+      // ---- Group head keyboard (Enter/Space toggles collapse, arrows navigate) ----
+      $$('#docsTree .group-head').forEach(head => {
+        head.addEventListener('keydown', (ev) => {
+          const groupEl = head.closest('.group');
+          if (!groupEl || groupEl.classList.contains('unsorted')) {
+            // Still allow arrow nav from unsorted head.
+          }
+          if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+            ev.preventDefault();
+            const items = $$('#docsTree .file, #docsTree .group-head');
+            const i = items.indexOf(head);
+            const next = items[Math.max(0, Math.min(items.length - 1, i + (ev.key === 'ArrowDown' ? 1 : -1)))];
+            if (next) next.focus();
+          } else if ((ev.key === 'Enter' || ev.key === ' ') && groupEl && !groupEl.classList.contains('unsorted')) {
+            if (ev.target.closest('.gdel')) return;
+            ev.preventDefault();
+            const id = groupEl.dataset.groupId;
+            const g = model.groups.find(x => x.id === id);
+            if (g) { g.collapsed = !g.collapsed; persist(); }
+          } else if (ev.key === 'ArrowRight' || ev.key === 'ArrowLeft') {
+            if (!groupEl || groupEl.classList.contains('unsorted')) return;
+            const id = groupEl.dataset.groupId;
+            const g = model.groups.find(x => x.id === id);
+            if (!g) return;
+            const wantCollapsed = ev.key === 'ArrowLeft';
+            if (g.collapsed !== wantCollapsed) {
+              ev.preventDefault();
+              g.collapsed = wantCollapsed;
+              persist();
+            }
+          }
+        });
+      });
+
+      function showMoveMenu(anchor, absPath) {
+        document.querySelectorAll('.move-menu').forEach(m => m.remove());
+        const menu = document.createElement('div');
+        menu.className = 'move-menu';
+        const rect = anchor.getBoundingClientRect();
+        menu.style.left = rect.right + 4 + 'px';
+        menu.style.top = rect.top + 'px';
+        const items = [];
+        // Audit this doc against the codebase via a fresh chat in Audit Mode.
+        items.push({ label: '🔍 Audit this doc against the code', fn: () => startAuditChat(absPath) });
+        items.push({ sep: true });
+        for (const g of model.groups) items.push({ label: '→ ' + g.name, fn: () => moveDoc(absPath, g.id) });
+        items.push({ label: '— Unsorted', fn: () => moveDoc(absPath, '__unsorted__') });
+        items.push({ sep: true });
+        items.push({ label: '+ New group from this doc', fn: async () => {
+          const nm = prompt('New group name:');
+          if (!nm) return;
+          const id = newId();
+          model.groups.push({ id, name: nm, collapsed: false, docs: [] });
+          await moveDoc(absPath, id);
+        }});
+        menu.innerHTML = items.map(it => it.sep ? '<div class="sep"></div>' : `<div>${it.label.replace(/</g,'&lt;')}</div>`).join('');
+        document.body.appendChild(menu);
+        const handlers = items.filter(it => !it.sep);
+        [...menu.querySelectorAll('div')].filter(el => !el.classList.contains('sep')).forEach((el, i) => {
+          el.addEventListener('click', () => { menu.remove(); handlers[i].fn(); });
+        });
+        setTimeout(() => {
+          const close = (ev) => { if (!menu.contains(ev.target)) { menu.remove(); document.removeEventListener('click', close); } };
+          document.addEventListener('click', close);
+        }, 0);
+      }
+
+      async function moveDoc(absPath, targetGroupId) {
+        for (const g of model.groups) g.docs = g.docs.filter(p => p !== absPath);
+        if (targetGroupId !== '__unsorted__') {
+          const g = model.groups.find(x => x.id === targetGroupId);
+          if (g) g.docs.push(absPath);
+        }
+        await persist();
+      }
+
+      async function startAuditChat(absPath) {
+        const doc = (d.docs || []).find(x => x.absolutePath === absPath);
+        if (!doc) { alert('Doc not found'); return; }
+        const stem = (doc.relPath.split(/[/\\]/).pop() || '').replace(/\.md$/i, '');
+        // Load the Audit preset for this specific doc.
+        let preset = '';
+        try {
+          const r = await api('/api/projects/' + encodeURIComponent(key) + '/system-prompt/preset?preset=audit&doc=' + encodeURIComponent(stem));
+          preset = (r && r.systemPrompt) || '';
+        } catch {}
+        if (!preset) { alert('Failed to load Audit preset'); return; }
+        // Create a fresh chat seeded with the audit preset.
+        const created = await api('/api/projects/' + encodeURIComponent(key) + '/chats',
+          { method: 'POST', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ title: 'Audit · ' + stem }) });
+        if (!created || !created.id) { alert('Failed to create chat'); return; }
+        await api('/api/projects/' + encodeURIComponent(key) + '/chats/' + encodeURIComponent(created.id),
+          { method: 'PATCH', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ systemPrompt: preset }) });
+        // Switch to the Chat tab and load this session, then prefill + send.
+        showTab('chat');
+        // Wait a tick for chat tab init to finish, then activate the new session.
+        setTimeout(async () => {
+          chatState.activeId = created.id;
+          // The chat tab loads sessions on init; reflect manually:
+          const list = await api('/api/projects/' + encodeURIComponent(key) + '/chats');
+          chatState.sessions = list.sessions || [];
+          // Best effort: trigger a click on the new session in the rail.
+          const railItem = document.querySelector('.chat-rail .session[data-id="' + created.id + '"]');
+          if (railItem) railItem.click();
+          // Prefill the textarea with the kickoff message.
+          const inp = document.getElementById('chatInput');
+          if (inp) {
+            inp.value = 'Audit @' + stem + ' against the codebase. Follow the audit plan: extract claims, verify each with grep_code/read_file, then propose_task for every failure or unverifiable claim. Stop only after the final summary.';
+            inp.focus();
+          }
+        }, 250);
+      }
+
+      // ---- Group head: rename, collapse, delete, drag ----
+      $$('.gname[data-group-id]').forEach(el => {
+        el.addEventListener('dblclick', () => {
+          el.contentEditable = 'true';
+          el.focus();
+          document.getSelection().selectAllChildren(el);
+        });
+        el.addEventListener('blur', async () => {
+          if (el.contentEditable !== 'true') return;
+          el.contentEditable = 'false';
+          const id = el.dataset.groupId;
+          const g = model.groups.find(x => x.id === id);
+          if (g) { g.name = el.textContent.trim() || 'Untitled'; await persist(); }
+        });
+        el.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter') { ev.preventDefault(); el.blur(); }
+          if (ev.key === 'Escape') { el.textContent = (model.groups.find(x => x.id === el.dataset.groupId) || {}).name || ''; el.blur(); }
+        });
+      });
+      $$('#docsTree .group-head').forEach(el => el.addEventListener('click', async (ev) => {
+        if (ev.target.closest('.gdel')) return;
+        ev.stopPropagation();
+        const id = el.closest('.group').dataset.groupId;
+        const g = model.groups.find(x => x.id === id);
+        if (g) { g.collapsed = !g.collapsed; await persist(); }
+      }));
+      $$('.gdel').forEach(el => el.addEventListener('click', async (ev) => {
+        ev.stopPropagation();
+        const id = el.closest('.group').dataset.groupId;
+        const g = model.groups.find(x => x.id === id);
+        if (!g) return;
+        if (g.docs.length > 0 && !confirm('Delete group "' + g.name + '"? Its ' + g.docs.length + ' doc(s) will go back to Unsorted.')) return;
+        model.groups = model.groups.filter(x => x.id !== id);
+        await persist();
+      }));
+
+      // ---- Add group ----
+      const addBtn = $('#addGroupBtn');
+      if (addBtn) addBtn.addEventListener('click', async () => {
+        const nm = prompt('New group name:');
+        if (!nm) return;
+        model.groups.push({ id: newId(), name: nm, collapsed: false, docs: [] });
+        await persist();
+      });
+
+      // ---- Drag-and-drop ----
+      let dragKind = null;       // 'doc' | 'group'
+      let dragPayload = null;    // absPath or groupId
+      $$('#docsTree .file').forEach(f => {
+        f.addEventListener('dragstart', (ev) => {
+          dragKind = 'doc'; dragPayload = f.dataset.docAbs;
+          f.classList.add('dragging');
+          ev.dataTransfer.effectAllowed = 'move';
+        });
+        f.addEventListener('dragend', () => f.classList.remove('dragging'));
+        f.addEventListener('dragover', (ev) => {
+          if (dragKind !== 'doc') return;
+          ev.preventDefault();
+          const r = f.getBoundingClientRect();
+          const above = (ev.clientY - r.top) < r.height / 2;
+          f.classList.toggle('drop-above', above);
+          f.classList.toggle('drop-below', !above);
+        });
+        f.addEventListener('dragleave', () => { f.classList.remove('drop-above','drop-below'); });
+        f.addEventListener('drop', async (ev) => {
+          if (dragKind !== 'doc') return;
+          ev.preventDefault();
+          const above = f.classList.contains('drop-above');
+          f.classList.remove('drop-above','drop-below');
+          const targetAbs = f.dataset.docAbs;
+          if (targetAbs === dragPayload) return;
+          const targetGroup = f.closest('.group');
+          const targetId = targetGroup ? targetGroup.dataset.groupId : '__unsorted__';
+          // Remove dragged from all groups, then insert at target position.
+          for (const g of model.groups) g.docs = g.docs.filter(p => p !== dragPayload);
+          if (targetId === '__unsorted__') {
+            // Just leave it unplaced.
+          } else {
+            const g = model.groups.find(x => x.id === targetId);
+            if (g) {
+              const idx = g.docs.indexOf(targetAbs);
+              const insertAt = above ? Math.max(0, idx) : idx + 1;
+              g.docs.splice(insertAt, 0, dragPayload);
+            }
+          }
+          await persist();
+        });
+      });
+      // Drop onto an empty group body.
+      $$('.group-body').forEach(body => {
+        body.addEventListener('dragover', (ev) => {
+          if (dragKind !== 'doc') return;
+          ev.preventDefault();
+          body.classList.add('drop-target');
+        });
+        body.addEventListener('dragleave', () => body.classList.remove('drop-target'));
+        body.addEventListener('drop', async (ev) => {
+          if (dragKind !== 'doc') return;
+          ev.preventDefault();
+          body.classList.remove('drop-target');
+          const targetId = body.dataset.groupId;
+          for (const g of model.groups) g.docs = g.docs.filter(p => p !== dragPayload);
+          if (targetId !== '__unsorted__') {
+            const g = model.groups.find(x => x.id === targetId);
+            if (g) g.docs.push(dragPayload);
+          }
+          await persist();
+        });
+      });
+      // Group head reordering.
+      $$('.group-head').forEach(head => {
+        const groupEl = head.closest('.group');
+        if (!groupEl || groupEl.classList.contains('unsorted')) return;
+        head.addEventListener('dragstart', (ev) => {
+          dragKind = 'group'; dragPayload = groupEl.dataset.groupId;
+          groupEl.classList.add('dragging');
+          ev.dataTransfer.effectAllowed = 'move';
+        });
+        head.addEventListener('dragend', () => groupEl.classList.remove('dragging'));
+      });
+      $$('.group').forEach(g => {
+        if (g.classList.contains('unsorted')) return;
+        g.addEventListener('dragover', (ev) => {
+          if (dragKind !== 'group') return;
+          if (g.dataset.groupId === dragPayload) return;
+          ev.preventDefault();
+        });
+        g.addEventListener('drop', async (ev) => {
+          if (dragKind !== 'group') return;
+          ev.preventDefault();
+          const targetId = g.dataset.groupId;
+          if (targetId === dragPayload) return;
+          const fromIdx = model.groups.findIndex(x => x.id === dragPayload);
+          const toIdx = model.groups.findIndex(x => x.id === targetId);
+          if (fromIdx === -1 || toIdx === -1) return;
+          const [moved] = model.groups.splice(fromIdx, 1);
+          model.groups.splice(toIdx, 0, moved);
+          await persist();
+        });
+      });
+    }
+    if (name === 'chat') {
+      initChatTab(key, d);
+    }
+    if (name === 'alignment') {
+      initAlignmentTab(key);
+    }
+    if (name === 'actionplan') {
+      initActionPlanTab(key);
+    }
+    if (name === 'inbox') {
+      const wireDec = (cls, action) => $$('.' + cls).forEach(b => b.addEventListener('click', async () => {
+        await api('/api/projects/' + encodeURIComponent(key) + '/pending-decisions/' + encodeURIComponent(b.dataset.id),
+          { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action }) });
+        renderProject(key);
+      }));
+      const wirePatch = (cls, action) => $$('.' + cls).forEach(b => b.addEventListener('click', async () => {
+        await api('/api/projects/' + encodeURIComponent(key) + '/pending-patches/' + encodeURIComponent(b.dataset.id),
+          { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action }) });
+        renderProject(key);
+      }));
+      wireDec('acceptDec', 'accept');
+      wireDec('rejectDec', 'reject');
+      wirePatch('applyPatch', 'apply');
+      wirePatch('rejectPatch', 'reject');
+    }
+    if (name === 'drifts') {
+      $('#runDrift')?.addEventListener('click', async () => {
+        $('#runDrift').textContent = 'Running…';
+        $('#runDrift').disabled = true;
+        await api('/api/projects/' + encodeURIComponent(key) + '/drifts',
+          { method: 'POST' });
+        renderProject(key);
+      });
+    }
+    if (name === 'decisions' && writable) {
+      $('#addDec')?.addEventListener('click', async () => {
+        const title = $('#decTitle')?.value?.trim() || undefined;
+        const why = $('#decWhy')?.value?.trim() || undefined;
+        const impact = $('#decImpact')?.value?.trim() || undefined;
+        const refsRaw = $('#decRefs')?.value?.trim() || '';
+        const refs = refsRaw ? refsRaw.split(',').map(s => s.trim()).filter(Boolean) : undefined;
+        if (!title && !why && !impact && !(refs && refs.length)) return;
+        await api('/api/projects/' + encodeURIComponent(key) + '/decisions',
+          { method: 'POST', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ title, why, impact, refs }) });
+        renderProject(key);
+      });
+    }
+    if (name === 'activity') {
+      const days = Object.entries(d.activity.heatmap).sort();
+      const maxC = Math.max(1, ...days.map(([, c]) => c));
+      $('#phm').innerHTML = days.map(([day, c]) => {
+        const lvl = c === 0 ? 0 : c / maxC > 0.66 ? 4 : c / maxC > 0.33 ? 3 : c > 1 ? 2 : 1;
+        return `<div class="day l${lvl}" title="${day}: ${c}"></div>`;
+      }).join('');
+      charts.ptools = new Chart($('#ptools'), {
+        type: 'bar', data: { labels: d.activity.topTools.map(t => t.tool),
+          datasets: [{ data: d.activity.topTools.map(t => t.count), backgroundColor: '#58a6ff' }] },
+        options: { indexAxis: 'y', plugins: { legend: { display: false } },
+          scales: { x: { ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--muted') } }, y: { ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text') } } } }
+      });
+      charts.pmodels = new Chart($('#pmodels'), {
+        type: 'doughnut', data: { labels: d.activity.models.map(m => m.model),
+          datasets: [{ data: d.activity.models.map(m => m.count),
+            backgroundColor: ['#58a6ff','#2ea043','#d29922','#a371f7'] }] },
+        options: { plugins: { legend: { position: 'right', labels: { color: getComputedStyle(document.documentElement).getPropertyValue('--text') } } } }
+      });
+    }
+  }
+  $$('.tab').forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
+  showTab('docs');
+}
+
+// ---------------- Knowledge search ----------------
+async function renderKnowledge() {
+  destroyCharts();
+  const main = $('#main');
+  main.innerHTML = `
+    <h2>Knowledge</h2>
+    <div class="muted">Search across all projects' scanned docs and decisions</div>
+    <div class="panel" style="margin-top:16px;">
+      <input type="search" id="kq" placeholder="auth, postgres, deployment, ..." />
+    </div>
+    <div id="kresults" style="margin-top:12px;"></div>
+  `;
+  const run = async () => {
+    const q = $('#kq').value.trim();
+    if (!q) { $('#kresults').innerHTML = ''; return; }
+    const d = await api('/api/knowledge/search?q=' + encodeURIComponent(q));
+    $('#kresults').innerHTML = d.results.length === 0
+      ? '<p class="muted">No matches.</p>'
+      : d.results.map(r => `
+          <div class="search-result" data-key="${r.group}">
+            <div class="meta">${r.displayName} · ${r.type} · ${r.ref}</div>
+            <div>${r.preview.replace(/</g, '&lt;')}</div>
+          </div>`).join('');
+    $$('.search-result').forEach(s => s.addEventListener('click', () => {
+      location.hash = '#/projects/' + encodeURIComponent(s.dataset.key);
+    }));
+  };
+  $('#kq').addEventListener('input', run);
+}
+
+// ---------------- Decisions feed (cross-project) ----------------
+async function renderDecisionsFeed() {
+  const params = new URL(location.href.replace('#', '?'));
+  const groupFilter = new URLSearchParams(location.hash.split('?')[1] || '').get('group') || '';
+  const qs = groupFilter ? '?group=' + encodeURIComponent(groupFilter) : '';
+  const [feed, projects] = await Promise.all([
+    api('/api/decisions' + qs),
+    api('/api/projects'),
+  ]);
+  const groups = (projects.groups || projects || []).map(p => ({ key: p.key, name: p.displayName || p.key }));
+  const esc = s => String(s ?? '').replace(/</g,'&lt;');
+  $('#main').innerHTML = `
+    <h2 style="margin-top:8px;">Decisions Feed</h2>
+    <div class="muted" style="margin-bottom:12px;">${feed.total} decisions across ${groups.length} groups</div>
+    <div style="margin-bottom:16px;">
+      <select id="grpFilter">
+        <option value="">All projects</option>
+        ${groups.map(g => `<option value="${esc(g.key)}" ${g.key === groupFilter ? 'selected' : ''}>${esc(g.name)}</option>`).join('')}
+      </select>
+    </div>
+    ${feed.decisions.length === 0 ? '<p class="muted">No decisions logged yet. Claude logs decisions automatically via <code>reef_log_decision</code> during sessions.</p>' : ''}
+    ${feed.decisions.map(e => {
+      const head = e.title ? `<strong style="font-size:14px;">${esc(e.title)}</strong>` : '';
+      const why = e.why ? `<div style="margin-top:6px;font-size:13px;"><span class="muted">Why:</span> ${esc(e.why)}</div>` : '';
+      const impact = e.impact ? `<div style="margin-top:4px;font-size:13px;"><span class="muted">Impact:</span> ${esc(e.impact)}</div>` : '';
+      const refs = (e.refs && e.refs.length) ? `<div style="margin-top:4px;font-size:12px;"><span class="muted">Refs:</span> ${e.refs.map(r => `<code style="font-size:11px;">${esc(r)}</code>`).join(' · ')}</div>` : '';
+      const fallback = (!e.title && !e.why && !e.impact) ? `<div class="body" style="margin-top:4px;">${esc(e.body)}</div>` : '';
+      return `
+        <div class="card" style="cursor:pointer;" data-key="${esc(e.group)}">
+          <div class="date" style="display:flex;justify-content:space-between;">
+            <span>${esc(e.date || '—')} · <span style="color:var(--accent);">${esc(e.groupDisplayName || e.group)}</span></span>
+            ${e.source === 'md' ? '<span class="muted" style="font-size:10px;">legacy</span>' : ''}
+          </div>
+          ${head}${why}${impact}${refs}${fallback}
+        </div>`;
+    }).join('')}
+  `;
+  $('#grpFilter').addEventListener('change', e => {
+    location.hash = e.target.value ? '#/decisions?group=' + encodeURIComponent(e.target.value) : '#/decisions';
+  });
+  $$('.card[data-key]').forEach(c => c.addEventListener('click', () => {
+    location.hash = '#/projects/' + encodeURIComponent(c.dataset.key);
+  }));
+}
+
+// ---------------- AI Spend ----------------
+async function renderSpend() {
+  const days = 30;
+  const d = await api('/api/spend?days=' + days);
+  const esc = s => String(s ?? '').replace(/</g,'&lt;');
+  const fmtUsd = n => '$' + (Number(n) || 0).toFixed(4);
+  const provider = d.provider || 'none';
+  const status = d.llmAvailable
+    ? `<span style="color:var(--green);">● ${esc(provider)} active</span>`
+    : `<span style="color:var(--red);">● no provider</span> — set <code>XAI_API_KEY</code>, <code>NIM_API_KEY</code>, or <code>OPENAI_API_KEY</code>`;
+  $('#main').innerHTML = `
+    <h2 style="margin-top:8px;">AI Spend (last ${days}d)</h2>
+    <div class="muted" style="margin-bottom:16px;">${status}</div>
+    <div class="grid">
+      <div class="panel"><h3>Total cost</h3><div style="font-size:32px;font-weight:600;">${fmtUsd(d.totalUsd)}</div><div class="muted">${d.totalCalls} calls · ${(d.totalInputTokens||0).toLocaleString()} in / ${(d.totalOutputTokens||0).toLocaleString()} out</div></div>
+      <div class="panel"><h3>By provider</h3>${(d.byProvider||[]).length === 0 ? '<p class="muted">No calls yet.</p>' : `<table><thead><tr><th>Provider</th><th>Calls</th><th>Cost</th></tr></thead><tbody>${d.byProvider.map(r => `<tr><td>${esc(r.provider)}</td><td>${r.calls}</td><td>${fmtUsd(r.usd)}</td></tr>`).join('')}</tbody></table>`}</div>
+      <div class="panel"><h3>By purpose</h3>${(d.byPurpose||[]).length === 0 ? '<p class="muted">No calls yet.</p>' : `<table><thead><tr><th>Purpose</th><th>Calls</th><th>Cost</th></tr></thead><tbody>${d.byPurpose.map(r => `<tr><td>${esc(r.purpose)}</td><td>${r.calls}</td><td>${fmtUsd(r.usd)}</td></tr>`).join('')}</tbody></table>`}</div>
+      <div class="panel"><h3>By model</h3>${(d.byModel||[]).length === 0 ? '<p class="muted">No calls yet.</p>' : `<table><thead><tr><th>Model</th><th>Calls</th><th>Cost</th></tr></thead><tbody>${d.byModel.map(r => `<tr><td><code>${esc(r.model)}</code></td><td>${r.calls}</td><td>${fmtUsd(r.usd)}</td></tr>`).join('')}</tbody></table>`}</div>
+    </div>
+    <div class="panel" style="margin-top:16px;">
+      <h3>Recent calls</h3>
+      ${(d.recent||[]).length === 0 ? '<p class="muted">No LLM calls yet. They will appear here once features like drift detection, claim extraction, or decision suggestions run.</p>' : `<table><thead><tr><th>When</th><th>Provider</th><th>Model</th><th>Purpose</th><th>In</th><th>Out</th><th>Cost</th><th>Group</th></tr></thead><tbody>${d.recent.map(r => `<tr><td>${fmtTime(r.startedAt)}</td><td>${esc(r.provider)}</td><td><code style="font-size:11px;">${esc(r.model)}</code></td><td>${esc(r.purpose)}</td><td>${r.inputTokens}</td><td>${r.outputTokens}</td><td>${fmtUsd(r.costUsd)}</td><td>${esc(r.group||'—')}</td></tr>`).join('')}</tbody></table>`}
+    </div>
+  `;
+}
+
+// ---------------- Router ----------------
+function route() {
+  const h = location.hash || '#/overview';
+  $$('#nav a').forEach(a => a.classList.toggle('active',
+    h === '#/' + a.dataset.route || h.startsWith('#/' + a.dataset.route + '/') || h.startsWith('#/' + a.dataset.route + '?')));
+  if (h === '#/overview' || h === '#/' || h === '') return renderOverview();
+  if (h === '#/projects') return renderProjectsList();
+  const m = h.match(/^#\/projects\/(.+)$/);
+  if (m) return renderProject(decodeURIComponent(m[1]));
+  if (h.startsWith('#/decisions')) return renderDecisionsFeed();
+  if (h === '#/spend' || h.startsWith('#/spend')) return renderSpend();
+  if (h === '#/knowledge') return renderKnowledge();
+}
+window.addEventListener('hashchange', route);
+route();
+</script>
+</body>
+</html>

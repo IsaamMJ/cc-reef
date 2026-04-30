@@ -1,6 +1,8 @@
 import { sessionStart } from './sessionStart.js';
 import { bashNudge } from './bashNudge.js';
 import { postSession } from './postSession.js';
+import { driftWatch } from './driftWatch.js';
+import { autoReport } from '../autoReport.js';
 import { log } from '../log.js';
 import { formatError } from '../formatError.js';
 
@@ -32,6 +34,9 @@ export async function runHook(name: string): Promise<void> {
       case 'post-session':
         out = await postSession(input as Record<string, unknown>);
         break;
+      case 'drift-watch':
+        out = await driftWatch(input as Record<string, unknown>);
+        break;
       default:
         log.warn('unknown hook', { name });
         out = {};
@@ -39,7 +44,13 @@ export async function runHook(name: string): Promise<void> {
     process.stdout.write(JSON.stringify(out ?? {}));
   } catch (e) {
     log.error('hook handler threw', { hook: name, err: formatError(e) });
-    // Swallow — never block CC on our bug.
+    // Swallow — never block CC on our bug. Also fire-and-forget an auto-report
+    // (no await; we can't slow the hook return down).
+    autoReport({
+      source: `hook:${name}`,
+      message: (e as Error).message ?? String(e),
+      stack: (e as Error).stack,
+    }).catch(() => { /* never let auto-report break us */ });
     process.stdout.write('{}');
   }
 }

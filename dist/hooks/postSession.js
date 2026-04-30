@@ -1,15 +1,17 @@
+import { basename, dirname } from 'node:path';
+import { existsSync } from 'node:fs';
 import { scan } from '../scan.js';
 import { closeDb } from '../db.js';
+import { loadConfig, getGroupForProject } from '../groups.js';
+import { suggestDecisionsForSession } from '../decisionSuggest.js';
+import { llmAvailable } from '../llm.js';
 import { log } from '../log.js';
 /**
- * Runs after a Claude Code session ends (Stop / SessionEnd hook).
- * Does an incremental scan — only files whose mtime changed will be parsed,
- * so in practice this processes just the session that just ended. Fast.
- *
- * Silent: emits no additionalContext. Its only job is to keep the DB fresh
- * so the next session-start can produce a useful resume card.
+ * Stop hook. Runs an incremental scan to keep the DB fresh, then (if an LLM
+ * provider is configured) asks the LLM to propose decisions from the session
+ * transcript. Suggestions sit in pending-decisions.json until the user accepts.
  */
-export async function postSession(_input) {
+export async function postSession(input) {
     try {
         const summary = await scan({ force: false });
         log.info('post-session scan', {
@@ -21,9 +23,27 @@ export async function postSession(_input) {
     catch (e) {
         log.warn('post-session scan failed', { err: e.message });
     }
-    finally {
-        closeDb();
+    if (llmAvailable() && input.transcript_path && input.session_id) {
+        try {
+            const transcriptPath = input.transcript_path;
+            if (existsSync(transcriptPath)) {
+                const project = basename(dirname(transcriptPath));
+                const cfg = loadConfig();
+                const group = getGroupForProject(cfg, project);
+                if (group) {
+                    await suggestDecisionsForSession({
+                        group,
+                        sessionId: input.session_id,
+                        transcriptPath,
+                    });
+                }
+            }
+        }
+        catch (e) {
+            log.warn('post-session: decision suggest failed', { err: e.message });
+        }
     }
+    closeDb();
     return {};
 }
 //# sourceMappingURL=postSession.js.map

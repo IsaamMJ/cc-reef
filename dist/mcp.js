@@ -1,15 +1,22 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, } from '@modelcontextprotocol/sdk/types.js';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { getStatus } from './status.js';
 import { generateReport } from './report.js';
+import { generateRetro } from './retro.js';
 import { scan } from './scan.js';
 import { closeDb, getDb } from './db.js';
-import { loadConfig, saveConfig, addGroup as addGroupData, linkProject, unlinkProject, renameGroup, mergeGroups, setGroupCompany, getGroupForProject, listGroupNames, UNGROUPED, } from './groups.js';
+import { loadConfig, saveConfig, addGroup as addGroupData, linkProject, unlinkProject, renameGroup, mergeGroups, setGroupCompany, setGroupDisplayName, getGroupForProject, listGroupNames, getGroupTrust, UNGROUPED, } from './groups.js';
 import { runAutoGroup } from './autoGroup.js';
 import { listProjectFolders } from './projects.js';
 import { log } from './log.js';
 import { formatError } from './formatError.js';
+import { autoReport, reportObservation, autoReportEnabled } from './autoReport.js';
+import { buildProjectContext } from './context.js';
+import { appendDecision, scanGroupRepoDocs, readDecisions } from './docs.js';
+import { REEF_COMPANIES, REEF_KNOWLEDGE } from './paths.js';
 const TOOLS = [
     {
         name: 'reef_status',
@@ -29,6 +36,26 @@ const TOOLS = [
                 days: {
                     type: 'number',
                     description: 'Look back N days (default 7). Ignored if `since` is set.',
+                },
+                since: {
+                    type: 'string',
+                    description: 'ISO timestamp. Overrides `days` if provided.',
+                },
+            },
+            additionalProperties: false,
+        },
+    },
+    {
+        name: 'reef_retro',
+        description: 'Generate a coaching-style weekly retro: wins, patterns to fix, and one concrete prescription for next week. ' +
+            'Use this when the user asks "how am I doing?", "what should I improve?", "weekly review", ' +
+            '"coaching", or "retro". Different from reef_report — this is opinionated and conversational, not a data dump.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                days: {
+                    type: 'number',
+                    description: 'Look back N days (default 7).',
                 },
                 since: {
                     type: 'string',
@@ -168,6 +195,19 @@ const TOOLS = [
         },
     },
     {
+        name: 'reef_update_group_display_name',
+        description: 'Update the friendly display name for a group. This is the name shown in reports, status line, and resume cards. Pass empty string to clear and use the group key as the display name.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                group: { type: 'string', description: 'Group key (internal identifier).' },
+                displayName: { type: 'string', description: 'New display name, or empty string to clear.' },
+            },
+            required: ['group', 'displayName'],
+            additionalProperties: false,
+        },
+    },
+    {
         name: 'reef_scan',
         description: 'Run an incremental scan of Claude Code transcripts. Normally ' +
             'unnecessary — the Stop hook auto-scans after every session — but ' +
@@ -180,6 +220,77 @@ const TOOLS = [
                     description: 'Rescan all files even if unchanged.',
                 },
             },
+            additionalProperties: false,
+        },
+    },
+    {
+        name: 'reef_get_context',
+        description: 'Get company and project context: what the company does, project vision/intent, ' +
+            'and recent decisions/pivots. PULL-BASED — only call when you need to understand ' +
+            'the company domain, project goals, or past decisions. Zero tokens if not called.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                group: { type: 'string', description: 'Group key (from reef_list_groups).' },
+            },
+            required: ['group'],
+            additionalProperties: false,
+        },
+    },
+    {
+        name: 'reef_log_decision',
+        description: 'Auto-log a significant technical or architectural decision made during this session. ' +
+            'Call this PROACTIVELY and AUTOMATICALLY whenever a significant decision, pivot, or ' +
+            'trade-off is made — choosing a library, changing architecture, dropping a feature, ' +
+            'selecting an approach. Do NOT wait to be asked. Prefer the structured form ' +
+            '(title/why/impact/refs); keep each field one short sentence.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                group: { type: 'string', description: 'Group key (from reef_list_groups).' },
+                title: { type: 'string', description: 'Short headline for the decision (e.g. "Switch booking storage to JSONL").' },
+                why: { type: 'string', description: 'Motivation — the problem, constraint, or trigger.' },
+                impact: { type: 'string', description: 'What changes as a result. Files, modules, or behaviour affected.' },
+                refs: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: 'Optional pointers — file paths, commit shas, or doc sections referenced.',
+                },
+                project: { type: 'string', description: 'Optional project folder name this decision is scoped to.' },
+                decision: {
+                    type: 'string',
+                    description: 'Legacy free-form alternative to title/why/impact. Use only if the structured fields do not fit.',
+                },
+            },
+            required: ['group'],
+            additionalProperties: false,
+        },
+    },
+    {
+        name: 'reef_report_observation',
+        description: 'File a GitHub issue on the reef repo for a bug, smell, or improvement YOU notice while reviewing reef\'s OWN code or behaviour. ' +
+            'Use this when you spot a defect, a missing safety check, a docs issue, a perf concern, or a UX problem in reef itself. ' +
+            'Do NOT use this for issues in the user\'s OTHER projects — only for reef. ' +
+            'Concise title and a clear description. Add fileRefs and a suggestedFix when possible. ' +
+            'Sensitive details (paths, usernames, keys) are sanitised before sending.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                title: { type: 'string', description: 'Short headline. ~80 chars max.' },
+                description: { type: 'string', description: 'What is wrong, where, and why it matters.' },
+                severity: {
+                    type: 'string',
+                    enum: ['bug', 'enhancement', 'docs', 'security', 'performance'],
+                    description: 'Best-fit category. Defaults to "bug".',
+                },
+                fileRefs: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: 'Relevant file paths in the reef repo (e.g. src/drift.ts).',
+                },
+                suggestedFix: { type: 'string', description: 'Optional. One paragraph proposing a fix.' },
+            },
+            required: ['title', 'description'],
             additionalProperties: false,
         },
     },
@@ -210,21 +321,40 @@ async function handleCall(name, args) {
                 });
                 return { content: [{ type: 'text', text: md }] };
             }
+            case 'reef_retro': {
+                const md = generateRetro({
+                    days: typeof a.days === 'number' ? a.days : undefined,
+                    since: typeof a.since === 'string' ? a.since : undefined,
+                });
+                return { content: [{ type: 'text', text: md }] };
+            }
             case 'reef_list_projects': {
                 const cfg = loadConfig();
-                const projects = listProjectFolders().map((project) => ({
-                    project,
-                    group: getGroupForProject(cfg, project) ?? UNGROUPED,
-                }));
+                const projects = listProjectFolders().map((project) => {
+                    const groupKey = getGroupForProject(cfg, project);
+                    return {
+                        project,
+                        group: groupKey ?? UNGROUPED,
+                        displayName: groupKey ? (cfg.groups[groupKey]?.displayName ?? groupKey) : UNGROUPED,
+                    };
+                });
                 return ok({ count: projects.length, projects });
             }
             case 'reef_list_groups': {
                 const cfg = loadConfig();
-                const groups = listGroupNames(cfg).map((name) => ({
-                    name,
-                    company: cfg.groups[name]?.company ?? null,
-                    projects: cfg.groups[name]?.projects ?? [],
-                }));
+                const groups = listGroupNames(cfg).map((name) => {
+                    const def = cfg.groups[name];
+                    const company = def.company ?? null;
+                    return {
+                        name,
+                        displayName: def.displayName ?? name,
+                        company,
+                        projects: def.projects ?? [],
+                        hasCompanyContext: company ? existsSync(join(REEF_COMPANIES, company, 'context.md')) : false,
+                        hasIntent: existsSync(join(REEF_KNOWLEDGE, name.toLowerCase(), 'intent.md')),
+                        hasFyi: existsSync(join(REEF_KNOWLEDGE, name.toLowerCase(), 'fyi.md')),
+                    };
+                });
                 return ok({ count: groups.length, groups });
             }
             case 'reef_create_group': {
@@ -346,10 +476,104 @@ async function handleCall(name, args) {
                 saveConfig(cfg);
                 return ok({ group: g, company: c || null });
             }
+            case 'reef_update_group_display_name': {
+                const g = a.group;
+                const d = a.displayName;
+                if (typeof g !== 'string' || !g.trim())
+                    return errResponse('group is required');
+                if (typeof d !== 'string')
+                    return errResponse('displayName must be a string');
+                const cfg = loadConfig();
+                setGroupDisplayName(cfg, g, d);
+                saveConfig(cfg);
+                return ok({ group: g, displayName: d || null });
+            }
             case 'reef_scan': {
                 const summary = await scan({ force: a.force === true });
                 closeDb();
                 return ok(summary);
+            }
+            case 'reef_get_context': {
+                const g = a.group;
+                if (typeof g !== 'string' || !g.trim())
+                    return errResponse('group is required');
+                const cfg = loadConfig();
+                const groupDef = cfg.groups[g];
+                if (!groupDef)
+                    return errResponse(`Group "${g}" not found`);
+                if (getGroupTrust(cfg, g) === 'deny') {
+                    return errResponse(`Trust tier for "${g}" is "deny" — context retrieval is blocked. Run \`reef trust ${g} read-only\` to allow.`);
+                }
+                const parts = [];
+                // Company context
+                const ctx = buildProjectContext(g, groupDef.displayName ?? g, groupDef.company ?? null);
+                if (ctx.companyContext)
+                    parts.push(`## Company: ${ctx.company}\n\n${ctx.companyContext}`);
+                // Scanned repo docs
+                const docs = scanGroupRepoDocs(groupDef.projects, groupDef.docPaths);
+                if (docs.length > 0) {
+                    const docList = docs.map((d) => `### ${d.title} (${d.relPath})\n\n${d.preview}`).join('\n\n---\n\n');
+                    parts.push(`## Project Documents\n\n${docList}`);
+                }
+                // decisions.md
+                const decisions = readDecisions(g);
+                if (decisions.length > 0) {
+                    const recent = decisions.slice(-10).reverse();
+                    const decList = recent.map((d) => `**${d.date}**: ${d.body}`).join('\n\n');
+                    parts.push(`## Decisions Log\n\n${decList}`);
+                }
+                if (parts.length === 0) {
+                    return ok({ group: g, note: 'No docs or decisions found yet. Drop PRD/TDD/spec .md files in the project repo and they will appear automatically.' });
+                }
+                return { content: [{ type: 'text', text: parts.join('\n\n---\n\n') }] };
+            }
+            case 'reef_log_decision': {
+                const g = a.group;
+                if (typeof g !== 'string' || !g.trim())
+                    return errResponse('group is required');
+                const cfg = loadConfig();
+                if (!cfg.groups[g])
+                    return errResponse(`Group "${g}" not found`);
+                if (getGroupTrust(cfg, g) === 'deny')
+                    return errResponse(`Trust tier for "${g}" is "deny" — writes blocked.`);
+                const title = typeof a.title === 'string' ? a.title : undefined;
+                const why = typeof a.why === 'string' ? a.why : undefined;
+                const impact = typeof a.impact === 'string' ? a.impact : undefined;
+                const project = typeof a.project === 'string' ? a.project : undefined;
+                const refs = Array.isArray(a.refs) ? a.refs.filter((r) => typeof r === 'string') : undefined;
+                const legacy = typeof a.decision === 'string' ? a.decision : undefined;
+                const hasStructured = !!(title || why || impact || (refs && refs.length));
+                if (!hasStructured && !legacy?.trim()) {
+                    return errResponse('Provide at least one of: title, why, impact, refs, decision');
+                }
+                appendDecision(g, hasStructured ? { title, why, impact, refs, project } : { body: legacy });
+                return ok({ group: g, logged: true });
+            }
+            case 'reef_report_observation': {
+                const title = a.title;
+                const description = a.description;
+                if (typeof title !== 'string' || !title.trim())
+                    return errResponse('title is required');
+                if (typeof description !== 'string' || !description.trim())
+                    return errResponse('description is required');
+                if (!autoReportEnabled()) {
+                    return ok({
+                        reported: false,
+                        reason: 'auto-report disabled',
+                        hint: 'Set REEF_AUTO_REPORT=1 and GITHUB_TOKEN in .env to enable.',
+                    });
+                }
+                const severity = typeof a.severity === 'string' ? a.severity : undefined;
+                const fileRefs = Array.isArray(a.fileRefs) ? a.fileRefs.filter((r) => typeof r === 'string') : undefined;
+                const suggestedFix = typeof a.suggestedFix === 'string' ? a.suggestedFix : undefined;
+                const result = await reportObservation({
+                    title,
+                    description,
+                    severity: severity,
+                    fileRefs,
+                    suggestedFix,
+                });
+                return ok(result);
             }
             default:
                 return errResponse(`Unknown tool: ${name}`);
@@ -357,6 +581,11 @@ async function handleCall(name, args) {
     }
     catch (e) {
         log.error('mcp tool threw', { tool: name, err: formatError(e) });
+        autoReport({
+            source: `mcp:${name}`,
+            message: e.message ?? String(e),
+            stack: e.stack,
+        }).catch(() => { });
         return errResponse(formatError(e));
     }
 }

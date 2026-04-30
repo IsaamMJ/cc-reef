@@ -11,3 +11,5 @@ export const REEF_LOGS = join(REEF_HOME, 'logs');
 export const REEF_LOG_FILE = join(REEF_LOGS, 'reef.log');
 export const REEF_REPORTS = join(REEF_HOME, 'reports');
 export const REEF_CONFIG = join(REEF_HOME, 'config.json');
+export const REEF_COMPANIES = join(REEF_HOME, 'companies');
+export const REEF_KNOWLEDGE = join(REEF_HOME, 'knowledge');

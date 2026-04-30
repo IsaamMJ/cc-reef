@@ -43,6 +43,25 @@ CREATE INDEX IF NOT EXISTS idx_tool_calls_tool ON tool_calls(tool_name);
 CREATE INDEX IF NOT EXISTS idx_tool_calls_project ON tool_calls(project);
 `;
 
+function addColumnIfMissing(
+  db: DatabaseSync,
+  table: string,
+  column: string,
+  type: string,
+): void {
+  try {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+    log.info('schema migration applied', { table, column });
+  } catch (e) {
+    const msg = (e as Error).message ?? '';
+    // SQLite error text for the already-applied case. Anything else (disk full,
+    // schema corrupt, lock contention) deserves visibility — log AND rethrow.
+    if (/duplicate column name/i.test(msg)) return;
+    log.error('schema migration failed', { table, column, err: msg });
+    throw e;
+  }
+}
+
 export function getDb(): DatabaseSync {
   if (_db) return _db;
   try {
@@ -52,6 +71,11 @@ export function getDb(): DatabaseSync {
     _db.exec('PRAGMA journal_mode = WAL;');
     _db.exec('PRAGMA foreign_keys = ON;');
     _db.exec(SCHEMA);
+    // Idempotent migrations — older databases may not have these columns.
+    // Swallow ONLY the "duplicate column name" case; surface anything else
+    // (disk full, schema corruption, lock errors) instead of silently hiding it.
+    addColumnIfMissing(_db, 'sessions', 'summary', 'TEXT');
+    addColumnIfMissing(_db, 'sessions', 'summary_at', 'TEXT');
     log.info('db opened', { path: REEF_DB });
     return _db;
   } catch (e) {

@@ -14,7 +14,7 @@ import {
   CLAUDE_SETTINGS,
   CLAUDE_HOME,
 } from './paths.js';
-import { loadConfig, getGroupForProject } from './groups.js';
+import { loadConfig, getGroupForProject, getGroupDisplayName } from './groups.js';
 import { HookInstallError } from './errors.js';
 import { log } from './log.js';
 
@@ -88,10 +88,11 @@ function buildReefSegment(project: string | null): string {
     const group = getGroupForProject(cfg, project);
     if (!group) return `🪸 ${project} · ungrouped`;
     const company = cfg.groups[group]?.company;
-    if (company && company !== group) {
-      return `🪸 ${company} · ${group}`;
+    const displayName = getGroupDisplayName(cfg, group);
+    if (company && company !== displayName) {
+      return `🪸 ${company} · ${displayName}`;
     }
-    return `🪸 ${group}`;
+    return `🪸 ${displayName}`;
   } catch (e) {
     log.warn('statusline config read failed', { err: (e as Error).message });
     return `🪸 ${project}`;

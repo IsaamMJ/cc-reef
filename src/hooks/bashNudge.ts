@@ -33,10 +33,14 @@ function looksLikePath(tok: string): boolean {
 const RULES: NudgeRule[] = [
   {
     name: 'grep',
-    test: (cmd) =>
-      /(^|\s|\|)\s*(rg|grep)\b/.test(cmd)
+    test: (cmd) => {
+      // Only fire when grep/rg starts the pipeline. Piped use like
+      // `cmd | grep "x"` filters another command's output and Grep tool can't help there.
+      const seg = firstSegment(cmd);
+      return /^(rg|grep)\b/.test(seg)
         ? 'Use the Grep tool instead of rg/grep — faster, structured results, no shell escaping.'
-        : null,
+        : null;
+    },
   },
   {
     name: 'find',
@@ -50,10 +54,13 @@ const RULES: NudgeRule[] = [
   },
   {
     name: 'sed',
-    test: (cmd) =>
-      /(^|\s|\|)\s*sed\b/.test(cmd)
+    test: (cmd) => {
+      // Only fire when sed is the first segment. Piped sed (`cmd | sed`) is filtering output, not editing files.
+      const seg = firstSegment(cmd);
+      return /^sed\b/.test(seg)
         ? 'Use the Edit tool for file edits — sed is brittle and cross-platform hostile.'
-        : null,
+        : null;
+    },
   },
   {
     name: 'cat-head-tail',

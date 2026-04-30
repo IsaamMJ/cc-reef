@@ -2,8 +2,7 @@ import { readdirSync, statSync, existsSync } from 'node:fs';
 import { join, basename, extname } from 'node:path';
 import { CLAUDE_PROJECTS } from './paths.js';
 import { getDb } from './db.js';
-import { parseJsonl, extractToolNames } from './parser.js';
-import { isParseError } from './errors.js';
+import { parseJsonl, extractToolNames, isParseFailure } from './parser.js';
 import { log } from './log.js';
 function collectJsonl(dir) {
     const out = [];
@@ -72,24 +71,12 @@ async function scanFile(filePath, project, fileMtime) {
         parse_errors: 0,
         tool_events: [],
     };
-    try {
-        for await (const { event } of parseJsonl(filePath)) {
-            aggregateFromEvent(agg, event);
-        }
-    }
-    catch (e) {
-        if (isParseError(e)) {
-            // One bad line shouldn't halt the scan — log and keep the partial aggregate.
+    for await (const yielded of parseJsonl(filePath)) {
+        if (isParseFailure(yielded)) {
             agg.parse_errors++;
-            log.warn('parse error (partial session kept)', {
-                file: filePath,
-                line: e.lineNumber,
-                err: e.message,
-            });
+            continue;
         }
-        else {
-            throw e;
-        }
+        aggregateFromEvent(agg, yielded.event);
     }
     return agg;
 }

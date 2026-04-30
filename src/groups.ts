@@ -10,9 +10,50 @@ import { REEF_CONFIG, REEF_HOME } from './paths.js';
 import { ConfigError } from './errors.js';
 import { log } from './log.js';
 
+export type TrustTier = 'read-write' | 'read-only' | 'deny';
+
 export interface GroupDef {
   company?: string;
+  displayName?: string;
+  trust?: TrustTier;
   projects: string[];
+  /**
+   * Extra absolute paths to scan for docs (PRD, TDD, specs, etc.) on top of
+   * the per-project repos in `projects`. Useful when docs live outside any
+   * scanned project repo — a sibling docs repo, a shared `/docs` folder,
+   * or a monorepo nested doc tree.
+   */
+  docPaths?: string[];
+  /**
+   * User-defined doc layout: a list of named groups, each containing an
+   * ordered list of doc absolute paths. Replaces the architectural
+   * taxonomy. Docs not in any group are surfaced as "unsorted".
+   */
+  docLayout?: {
+    groups: Array<{
+      id: string;
+      name: string;
+      docs: string[];
+      collapsed?: boolean;
+    }>;
+  };
+}
+
+export function getGroupTrust(cfg: ReefConfig, name: string): TrustTier {
+  const g = cfg.groups[name];
+  if (!g) return 'read-write';
+  return g.trust ?? 'read-write';
+}
+
+export function setGroupTrust(
+  cfg: ReefConfig,
+  name: string,
+  trust: TrustTier,
+): ReefConfig {
+  const g = cfg.groups[name];
+  if (!g) throw new ConfigError(`Group "${name}" not found`, REEF_CONFIG);
+  g.trust = trust;
+  return cfg;
 }
 
 export interface ReefConfig {
@@ -167,6 +208,24 @@ export function setGroupCompany(
   if (company && company.trim()) g.company = company.trim();
   else delete g.company;
   return cfg;
+}
+
+export function setGroupDisplayName(
+  cfg: ReefConfig,
+  name: string,
+  displayName: string | undefined,
+): ReefConfig {
+  const g = cfg.groups[name];
+  if (!g) throw new ConfigError(`Group "${name}" not found`, REEF_CONFIG);
+  if (displayName && displayName.trim()) g.displayName = displayName.trim();
+  else delete g.displayName;
+  return cfg;
+}
+
+export function getGroupDisplayName(cfg: ReefConfig, name: string): string {
+  const g = cfg.groups[name];
+  if (!g) return name;
+  return g.displayName || name;
 }
 
 export function getUnassignedProjects(

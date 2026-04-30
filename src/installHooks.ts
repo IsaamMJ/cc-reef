@@ -44,6 +44,7 @@ export interface InstallResult {
 const HOOK_SPEC = [
   { event: 'SessionStart', hookName: 'session-start', matcher: undefined },
   { event: 'PreToolUse', hookName: 'bash-nudge', matcher: 'Bash' },
+  { event: 'PostToolUse', hookName: 'drift-watch', matcher: 'Edit|Write|MultiEdit|NotebookEdit' },
   { event: 'Stop', hookName: 'post-session', matcher: undefined },
 ] as const;
 

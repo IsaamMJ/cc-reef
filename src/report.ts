@@ -1,7 +1,7 @@
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { getDb, closeDb } from './db.js';
-import { loadConfig, getGroupForProject, UNGROUPED } from './groups.js';
+import { loadConfig, getGroupForProject, getGroupDisplayName, UNGROUPED } from './groups.js';
 import { log } from './log.js';
 
 export interface ReportOptions {
@@ -188,7 +188,8 @@ export function generateReport(opts: ReportOptions = {}): string {
   lines.push('');
   const sortedGroups = [...groups.values()].sort((a, b) => b.sessions - a.sessions);
   for (const row of sortedGroups) {
-    const title = row.company ? `${row.group} (${row.company})` : row.group;
+    const displayName = row.group === UNGROUPED ? UNGROUPED : getGroupDisplayName(cfg, row.group);
+    const title = row.company ? `${displayName} (${row.company})` : displayName;
     lines.push(`### ${title}`);
     lines.push('');
     lines.push(
